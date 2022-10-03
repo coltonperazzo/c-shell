@@ -16,8 +16,7 @@
 
 struct command_struct {
     char *cmd; //date, ls, cd, exit
-
-    //char *args[];
+    char *args[ARGS_MAX];
 };
 
 // end command structure
@@ -33,7 +32,7 @@ void parse_args_from_cmd() {
 
 }
 
-struct command_struct *parse_cmd(char *cmd) {
+struct command_struct parse_cmd(char *cmd) {
         // get all commands and put in array
         // get all args of cmd and put in rray in cmd
         // return
@@ -43,27 +42,22 @@ struct command_struct *parse_cmd(char *cmd) {
                 // loop through all commands and break at "|"
                 printf("multiple cmds\n");
         } else {
-                // date - 4 chrs
-                // date - 4 chrs 
-                // no args
-
-                // date -u - 7 chars
-                // date - 4 chars
-                // args 7!=4
                 char* temp_string = calloc(strlen(cmd)+1, sizeof(char));
                 strcpy(temp_string, cmd);
                 char *first_cmd = strtok(temp_string, " ");
-                printf("first: %ld\n", strlen(first_cmd));
-                printf("cmd: %ld\n", strlen(cmd));
+                struct command_struct new_cmd;
+                new_cmd.cmd = first_cmd;
                 if (strlen(first_cmd) == strlen(cmd)) {
-                        printf("no args\n");
-                        struct command_struct *new_cmd;
-                        new_cmd->cmd = first_cmd;
-                        //new_cmd->args = {first_cmd, NULL, NULL};
-                        return new_cmd;
+                        new_cmd.args[0] = NULL;
                 } else {
                         printf("got args\n");
+                        new_cmd.args[0] = first_cmd;
+                        new_cmd.args[1] = "-u";
+                        new_cmd.args[2] = NULL;
+                        //parse through the end of line
+                        //append NULL at the end of array
                 }
+                return new_cmd;
         }
 }
 
@@ -85,8 +79,7 @@ int main(void) {
                         fprintf(stderr, "Bye...\n");
                         break;
                 }
-                struct command_struct *cmd_to_run = parse_cmd(cmd);
-                printf("test: %s\n", cmd_to_run->cmd);
+                struct command_struct cmd_to_run = parse_cmd(cmd); // todo: add piepline to support multiple cmds
                 char *testargs[] = {cmd, NULL, NULL};
                 pid_t pid;
                 pid = fork();
@@ -95,7 +88,7 @@ int main(void) {
                         waitpid(pid, &return_value, 0);
                         fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
                 } else if (pid == 0) { // child
-                        execvp(cmd_to_run->cmd, testargs);
+                        execvp(cmd_to_run.cmd, cmd_to_run.args);
                         perror("execv");
                         exit(1);
                 } else { printf("inital process error out"); }   
