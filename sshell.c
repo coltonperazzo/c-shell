@@ -15,7 +15,7 @@
 // command structure 
 
 struct command_struct {
-    char *cmd; //date, ls, cd, exit
+    char *program; //date, ls, cd, exit
     char *args[ARGS_MAX];
 };
 
@@ -38,9 +38,8 @@ void cd_cmd() {
 }
 
 void parse_args_from_cmd() {
-        
-}
 
+}
 
 struct command_struct parse_cmd(char *cmd) {
         char* has_multiple_commands = strchr(cmd, '|');
@@ -48,18 +47,18 @@ struct command_struct parse_cmd(char *cmd) {
                 // loop through all commands and break at "|"
                 printf("multiple cmds\n");
         } else {
-                char* temp_string = calloc(strlen(cmd)+1, sizeof(char));
-                strcpy(temp_string, cmd);
-                char *first_cmd = strtok(temp_string, " ");
+                char* temp_prog = calloc(strlen(cmd)+1, sizeof(char));
+                strcpy(temp_prog, cmd);
+                char *prog = strtok(temp_prog, " ");
                 struct command_struct new_cmd;
-                new_cmd.cmd = first_cmd;
-                if (strlen(first_cmd) == strlen(cmd)) { new_cmd.args[0] = NULL; 
+                new_cmd.program = prog;
+                if (strlen(prog) == strlen(cmd)) { new_cmd.args[0] = NULL; 
                 } else {
-                        new_cmd.args[0] = first_cmd;
+                        new_cmd.args[0] = prog;
                         int i = 1;
                         char *cmd_arg = strtok(cmd, " ");
                         while (cmd_arg != NULL) {
-                                if (strcmp(cmd_arg, first_cmd)) {
+                                if (strcmp(cmd_arg, prog)) {
                                         new_cmd.args[i] = cmd_arg;
                                         i++;
                                 }
@@ -90,15 +89,15 @@ int main(void) {
                         break;
                 }
                 struct command_struct cmd_to_run = parse_cmd(cmd); // todo: add piepline to support multiple cmds
-                char *testargs[] = {cmd, NULL, NULL};
                 pid_t pid;
                 pid = fork();
+                // needs to handle errors if program isnt vallid
                 if (pid > 0) { // parent
                         int return_value;
                         waitpid(pid, &return_value, 0);
                         fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
                 } else if (pid == 0) { // child
-                        execvp(cmd_to_run.cmd, cmd_to_run.args);
+                        execvp(cmd_to_run.program, cmd_to_run.args);
                         perror("execv");
                         exit(1);
                 } else { printf("inital process error out"); }   
