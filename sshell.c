@@ -32,11 +32,8 @@ void parse_args_from_cmd() {
 
 }
 
+
 struct command_struct parse_cmd(char *cmd) {
-        // get all commands and put in array
-        // get all args of cmd and put in rray in cmd
-        // return
-        //printf("test: %s\n", cmd);
         char* has_multiple_commands = strchr(cmd, '|');
         if (has_multiple_commands) {
                 // loop through all commands and break at "|"
@@ -47,15 +44,19 @@ struct command_struct parse_cmd(char *cmd) {
                 char *first_cmd = strtok(temp_string, " ");
                 struct command_struct new_cmd;
                 new_cmd.cmd = first_cmd;
-                if (strlen(first_cmd) == strlen(cmd)) {
-                        new_cmd.args[0] = NULL;
+                if (strlen(first_cmd) == strlen(cmd)) { new_cmd.args[0] = NULL; 
                 } else {
-                        printf("got args\n");
                         new_cmd.args[0] = first_cmd;
-                        new_cmd.args[1] = "-u";
-                        new_cmd.args[2] = NULL;
-                        //parse through the end of line
-                        //append NULL at the end of array
+                        int i = 1;
+                        char *test = strtok(cmd, " ");
+                        while (test != NULL) {
+                                if (strcmp(test, first_cmd)) {
+                                        new_cmd.args[i] = test;
+                                        i++;
+                                }
+                                test = strtok(NULL, " ");
+                        }
+                        new_cmd.args[i] = NULL;
                 }
                 return new_cmd;
         }
