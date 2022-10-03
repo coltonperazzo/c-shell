@@ -26,10 +26,19 @@ void setup_cmd_struct(char *cmd) {
         //struct command_struct cmd_str;
         //cmd_str = cmd;
 
+        // should move some stuff from parse_cmd into here
+}
+
+void pwd_cmd() {
+
+}
+
+void cd_cmd() {
+
 }
 
 void parse_args_from_cmd() {
-
+        
 }
 
 
@@ -48,15 +57,15 @@ struct command_struct parse_cmd(char *cmd) {
                 } else {
                         new_cmd.args[0] = first_cmd;
                         int i = 1;
-                        char *test = strtok(cmd, " ");
-                        while (test != NULL) {
-                                if (strcmp(test, first_cmd)) {
-                                        new_cmd.args[i] = test;
+                        char *cmd_arg = strtok(cmd, " ");
+                        while (cmd_arg != NULL) {
+                                if (strcmp(cmd_arg, first_cmd)) {
+                                        new_cmd.args[i] = cmd_arg;
                                         i++;
                                 }
-                                test = strtok(NULL, " ");
+                                cmd_arg = strtok(NULL, " ");
                         }
-                        new_cmd.args[i] = NULL;
+                        new_cmd.args[i] = NULL; // set last arg to NULL
                 }
                 return new_cmd;
         }
