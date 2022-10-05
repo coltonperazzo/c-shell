@@ -92,7 +92,6 @@ int main(void) {
 
                         } else {
                                 struct command_struct cmd_to_run = setup_single_cmd(cmd); // todo: add piepline to support multiple cmds
-                                //printf("num args struct %d\n", cmd_to_run.number_of_args);
                                 if (!check_if_too_many_args(cmd_to_run)) {
                                         pid_t pid;
                                         pid = fork();
