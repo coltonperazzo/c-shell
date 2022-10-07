@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -20,6 +21,10 @@ struct command_struct {
         char *args[ARGS_MAX];
         char *output_file; 
         bool has_output_file;
+
+        char *input_file;
+        bool has_input_file;
+
         int number_of_args;
 };
 
@@ -50,6 +55,10 @@ bool check_if_missing_output_file(struct command_struct cmd_struct) {
         return false;
 }
 
+bool check_if_output_file_does_not_exist(struct command_struct cmd_struct) {
+        return false;
+}
+
 bool check_if_invalid_commands(struct command_struct cmd_struct) {
         if (cmd_struct.program[0] == '>' || cmd_struct.program[0] == '|') {
                 return true;
@@ -61,17 +70,36 @@ bool check_if_invalid_commands(struct command_struct cmd_struct) {
         return false;
 }
 
+
+bool sanity_check_cmd(struct command_struct cmd_struct) {
+        bool can_run = true;
+        if (check_if_invalid_commands(cmd_struct)) { // leftmost
+                fprintf(stderr, "Error: missing command\n");
+                can_run = false;
+        } else if (check_if_missing_output_file(cmd_struct)) { // 2nd leftmost
+                fprintf(stderr, "Error: no output file\n");
+                can_run = false;
+        } else if (check_if_too_many_args(cmd_struct)) { // 3rd leftmost
+                fprintf(stderr, "Error: too many process arguments\n");
+                can_run = false;
+        }
+        // todo: add more here
+        return can_run;
+}
+
 void setup_multiple_cmds() {
 
 }
 
-struct command_struct setup_single_cmd(char *cmd) {
+struct command_struct parse_single_cmd(char *cmd) {
         char *prog = get_program_name(cmd);
         struct command_struct new_cmd;
         new_cmd.full_cmd = cmd;
         new_cmd.program = prog;
         new_cmd.args[0] = prog;
         new_cmd.number_of_args = 1;
+
+        // parse output
         char* has_output_file = strchr(cmd, '>');
         if (has_output_file) {
                 new_cmd.has_output_file = true;
@@ -80,6 +108,13 @@ struct command_struct setup_single_cmd(char *cmd) {
                 char *split_at_output = strchr(temp_cmd, '>')+1;
                 new_cmd.output_file = strtok(split_at_output, " ");;
         }
+
+        // parse input
+        char *has_input_file = strchr(cmd, '<');
+        if (has_input_file) {
+                new_cmd.has_input_file = true;
+        }
+
         if (strlen(prog) == strlen(cmd)) { new_cmd.args[1] = NULL; }
         else {
                 char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
@@ -137,38 +172,26 @@ int main(void) {
                         //char* has_multiple_commands = strchr(cmd, '|');
                         bool has_multiple_commands = false; //temp;
                         if (has_multiple_commands) {
-
+                                // todo: if multiple commands, ensure only last cmd can output redirect
                         } else {
-                                struct command_struct cmd_to_run = setup_single_cmd(cmd); // todo: add piepline to support multiple cmds
-                                if (!check_if_invalid_commands(cmd_to_run)) {
-                                        if (!check_if_missing_output_file(cmd_to_run)) {
-                                                if (!check_if_too_many_args(cmd_to_run)) {
-                                                        if (cmd_to_run.has_output_file) {
-                                                                //run check_if_contains_output_file
-                                                        }
-                                                        pid_t pid;
-                                                        pid = fork();
-                                                        if (pid > 0) { // parent
-                                                                int return_value;
-                                                                waitpid(pid, &return_value, 0);
-                                                                fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
-                                                        } else if (pid == 0) { // child
-                                                                execvp(cmd_to_run.program, cmd_to_run.args);
-                                                                int error_code = errno;
-                                                                switch (error_code) {
-                                                                        case 2:
-                                                                        fprintf(stderr, "Error: command not found\n");  
-                                                                }
-                                                                exit(1);
-                                                        } else { printf("Error: fork cannot be created\n"); }   
-                                                } else {
-                                                        fprintf(stderr, "Error: too many process arguments\n");
-                                                } 
-                                        } else {
-                                                fprintf(stderr, "Error: no output file\n");
-                                        }
-                                } else {
-                                        fprintf(stderr, "Error: missing command\n");
+                                struct command_struct cmd_to_run = parse_single_cmd(cmd); // todo: add piepline to support multiple cmds
+                                bool can_run = sanity_check_cmd(cmd_to_run);
+                                if (can_run) {
+                                        pid_t pid;
+                                        pid = fork();
+                                        if (pid > 0) { // parent
+                                                int return_value;
+                                                waitpid(pid, &return_value, 0);
+                                                fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
+                                        } else if (pid == 0) { // child
+                                                execvp(cmd_to_run.program, cmd_to_run.args);
+                                                int error_code = errno;
+                                                switch (error_code) {
+                                                        case 2:
+                                                        fprintf(stderr, "Error: command not found\n");  
+                                                }
+                                                exit(1);
+                                        } else { printf("Error: fork cannot be created\n"); }
                                 }
                         }
                 }
