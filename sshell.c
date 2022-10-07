@@ -15,10 +15,16 @@
 #define ARGS_MAX 17
 
 struct command_struct {
+        char *full_cmd;
         char *program; // date, ls, cd, exit
         char *args[ARGS_MAX];
-        char *output_file;
+        char *output_file; 
+        bool has_output_file;
         int number_of_args;
+};
+
+struct stack {
+        int top_stack;
 };
 
 char *get_program_name(char *cmd) {
@@ -35,6 +41,26 @@ bool check_if_too_many_args(struct command_struct cmd_struct) {
         return false;
 }
 
+bool check_if_missing_output_file(struct command_struct cmd_struct) {
+        if (cmd_struct.has_output_file) {
+                if (cmd_struct.full_cmd[strlen(cmd_struct.full_cmd)-1] == '>') {
+                        return true;
+                }
+        }
+        return false;
+}
+
+bool check_if_invalid_commands(struct command_struct cmd_struct) {
+        if (cmd_struct.program[0] == '>' || cmd_struct.program[0] == '|') {
+                return true;
+        } else {
+                if (cmd_struct.full_cmd[strlen(cmd_struct.full_cmd)-1] == '|') {
+                        return true;
+                }
+        }
+        return false;
+}
+
 void setup_multiple_cmds() {
 
 }
@@ -42,9 +68,16 @@ void setup_multiple_cmds() {
 struct command_struct setup_single_cmd(char *cmd) {
         char *prog = get_program_name(cmd);
         struct command_struct new_cmd;
+        new_cmd.full_cmd = cmd;
         new_cmd.program = prog;
         new_cmd.args[0] = prog;
         new_cmd.number_of_args = 1;
+        char* has_output_file = strchr(cmd, '>');
+        if (has_output_file) {
+                new_cmd.has_output_file = true;
+                // find output file, if it exits
+
+        }
         if (strlen(prog) == strlen(cmd)) { new_cmd.args[1] = NULL; }
         else {
                 char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
@@ -87,30 +120,42 @@ int main(void) {
                 } else if (!strcmp(cmd, "pwd")) {
                         // pwd command
                 } else {
-                        char* has_multiple_commands = strchr(cmd, '|');
+                        //char* has_multiple_commands = strchr(cmd, '|');
+                        bool has_multiple_commands = false; //temp;
                         if (has_multiple_commands) {
 
                         } else {
                                 struct command_struct cmd_to_run = setup_single_cmd(cmd); // todo: add piepline to support multiple cmds
-                                if (!check_if_too_many_args(cmd_to_run)) {
-                                        pid_t pid;
-                                        pid = fork();
-                                        if (pid > 0) { // parent
-                                                int return_value;
-                                                waitpid(pid, &return_value, 0);
-                                                fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
-                                        } else if (pid == 0) { // child
-                                                execvp(cmd_to_run.program, cmd_to_run.args);
-                                                int error_code = errno;
-                                                switch (error_code) {
-                                                        case 2:
-                                                        fprintf(stderr, "Error: command not found\n");  
-                                                }
-                                                exit(1);
-                                        } else { printf("Error: fork cannot be created\n"); }   
+                                if (!check_if_invalid_commands(cmd_to_run)) {
+                                        if (!check_if_missing_output_file(cmd_to_run)) {
+                                                if (!check_if_too_many_args(cmd_to_run)) {
+                                                        if (cmd_to_run.has_output_file) {
+                                                                //run check_if_contains_output_file
+                                                        }
+                                                        pid_t pid;
+                                                        pid = fork();
+                                                        if (pid > 0) { // parent
+                                                                int return_value;
+                                                                waitpid(pid, &return_value, 0);
+                                                                fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
+                                                        } else if (pid == 0) { // child
+                                                                execvp(cmd_to_run.program, cmd_to_run.args);
+                                                                int error_code = errno;
+                                                                switch (error_code) {
+                                                                        case 2:
+                                                                        fprintf(stderr, "Error: command not found\n");  
+                                                                }
+                                                                exit(1);
+                                                        } else { printf("Error: fork cannot be created\n"); }   
+                                                } else {
+                                                        fprintf(stderr, "Error: too many process arguments\n");
+                                                } 
+                                        } else {
+                                                fprintf(stderr, "Error: no output file\n");
+                                        }
                                 } else {
-                                        fprintf(stderr, "Error: too many process arguments\n");
-                                } 
+                                        fprintf(stderr, "Error: missing command\n");
+                                }
                         }
                 }
         }
