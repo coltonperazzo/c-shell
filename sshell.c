@@ -75,8 +75,10 @@ struct command_struct setup_single_cmd(char *cmd) {
         char* has_output_file = strchr(cmd, '>');
         if (has_output_file) {
                 new_cmd.has_output_file = true;
-                // find output file, if it exits
-
+                char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
+                strcpy(temp_cmd, cmd);
+                char *split_at_output = strchr(temp_cmd, '>')+1;
+                new_cmd.output_file = strtok(split_at_output, " ");;
         }
         if (strlen(prog) == strlen(cmd)) { new_cmd.args[1] = NULL; }
         else {
@@ -84,7 +86,19 @@ struct command_struct setup_single_cmd(char *cmd) {
                 strcpy(temp_cmd, cmd);
                 char *cmd_arg = strtok(temp_cmd, " ");
                 while (cmd_arg != NULL) {
-                        if (strcmp(cmd_arg, prog)) {
+                        bool can_add_arg = true;
+                        if (!strcmp(cmd_arg, prog)) {
+                                can_add_arg = false;
+                        } else if (!strcmp(cmd_arg, ">")) {
+                                can_add_arg = false;
+                        } else {
+                                if (new_cmd.has_output_file) {
+                                        if (strcmp(cmd_arg, new_cmd.output_file) == 0) {
+                                                can_add_arg = false;
+                                        }
+                                }
+                        }
+                        if (can_add_arg) {
                                 if (new_cmd.number_of_args > (ARGS_MAX - 1)) {
                                         break;
                                 }
