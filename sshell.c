@@ -1,5 +1,5 @@
 // sshell.c
-// Colton Perazzo and Andras
+// Colton Perazzo and Andras Necz
 // ECS 150, University of California, Davis
 
 #include <stdio.h>
@@ -29,7 +29,19 @@ void setup_cmd_struct(char *cmd) {
         // should move some stuff from parse_cmd into here
 }
 
-void pwd_cmd() {
+int pwd_cmd() {
+        char *buffer;
+        size_t size = 100;
+        while (1)
+        {
+                buffer = (char*) * malloc(size);
+                if (getcwd (buffer, size) == buffer)
+                        return 1;
+                free (buffer);
+                if (errno != ERANGE)
+                        return 0;
+                size *= 2;
+        }
 
 }
 
@@ -97,6 +109,13 @@ int main(void) {
                         waitpid(pid, &return_value, 0);
                         fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
                 } else if (pid == 0) { // child
+                        if (cmd_to_run.program == "pwd") 
+                        { 
+                                if(pwd_cmd() == 0) {
+                                        perror("pwd buffer");
+                                        exit(2);
+                                }
+                        }
                         execvp(cmd_to_run.program, cmd_to_run.args);
                         perror("execv");
                         exit(1);
