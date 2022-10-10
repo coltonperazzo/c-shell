@@ -1,9 +1,5 @@
 // sshell.c
-<<<<<<< HEAD
-// Colton Perazzo and Andras Necz
-=======
-// Colton Perazzo and Andras 
->>>>>>> 6da53f64f47dabc1c74ef702ff95b3b4be101d33
+// Colton Perazzo and Necz András 
 // ECS 150, University of California, Davis
 
 #include <stdio.h>
@@ -43,62 +39,9 @@ char *get_program_name(char *cmd) {
         return prog;
 }
 
-<<<<<<< HEAD
-int pwd_cmd() {
-        char *buffer;
-        size_t size = 100;
-        while (1)
-        {
-                buffer = (char*) * malloc(size);
-                if (getcwd (buffer, size) == buffer)
-                        return 1;
-                free (buffer);
-                if (errno != ERANGE)
-                        return 0;
-                size *= 2;
-        }
-
-}
-
-void cd_cmd() {
-
-}
-
-void parse_args_from_cmd() {
-
-}
-
-struct command_struct parse_cmd(char *cmd) {
-        char* has_multiple_commands = strchr(cmd, '|');
-        if (has_multiple_commands) {
-                // loop through all commands and break at "|"
-                printf("multiple cmds\n");
-        } else {
-                char* temp_prog = calloc(strlen(cmd)+1, sizeof(char));
-                strcpy(temp_prog, cmd);
-                char *prog = strtok(temp_prog, " ");
-                struct command_struct new_cmd;
-                new_cmd.program = prog;
-                if (strlen(prog) == strlen(cmd)) { new_cmd.args[0] = NULL; 
-                } else {
-                        new_cmd.args[0] = prog;
-                        int i = 1;
-                        char *cmd_arg = strtok(cmd, " ");
-                        while (cmd_arg != NULL) {
-                                if (strcmp(cmd_arg, prog)) {
-                                        new_cmd.args[i] = cmd_arg;
-                                        i++;
-                                }
-                                cmd_arg = strtok(NULL, " ");
-                        }
-                        new_cmd.args[i] = NULL; // set last arg to NULL
-                }
-                return new_cmd;
-=======
 bool check_if_too_many_args(struct command_struct cmd_struct) {
         if (cmd_struct.number_of_args > ARGS_MAX - 1) {
                 return true;
->>>>>>> 6da53f64f47dabc1c74ef702ff95b3b4be101d33
         }
         return false;
 }
@@ -204,6 +147,32 @@ struct command_struct parse_single_cmd(char *cmd) {
         return new_cmd;
 }
 
+int file_name_errors(int err) {
+
+}
+
+void pwd_execution() {
+        //gotta deal with error handling
+        char buf[256];
+        printf("%s\n", getcwd(buf, sizeof(buf)));
+        /*
+        if (chdir("/tmp") != 0)
+                perror("chdir() error()");
+        else {
+                if (getcwd(cwd, sizeof(cwd)) == NULL)
+                        perror("getcwd() error");
+                else
+                        printf("current working directory is: %s\n", cwd);
+        }
+        */
+}
+
+void cd_execution(const char filename[256]) {
+        printf("here in cd");
+        int ret = chdir(filename);
+        printf("%i\n", ret);
+}
+
 int main(void) {
         char cmd[CMDLINE_MAX];
         while (1) {
@@ -222,9 +191,11 @@ int main(void) {
                         fprintf(stderr, "Bye...\n");
                         break;
                 } else if (!strcmp(cmd, "cd")) {
-                        // cd command
+                        cd_execution()
                 } else if (!strcmp(cmd, "pwd")) {
                         // pwd command
+                        pwd_execution();
+
                 } else {
                         //char* has_multiple_commands = strchr(cmd, '|');
                         bool has_multiple_commands = false; //temp;
@@ -252,29 +223,6 @@ int main(void) {
                                 }
                         }
                 }
-<<<<<<< HEAD
-                struct command_struct cmd_to_run = parse_cmd(cmd); // todo: add piepline to support multiple cmds
-                pid_t pid;
-                pid = fork();
-                // needs to handle errors if program isnt vallid
-                if (pid > 0) { // parent
-                        int return_value;
-                        waitpid(pid, &return_value, 0);
-                        fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
-                } else if (pid == 0) { // child
-                        if (cmd_to_run.program == "pwd") 
-                        { 
-                                if(pwd_cmd() == 0) {
-                                        perror("pwd buffer");
-                                        exit(2);
-                                }
-                        }
-                        execvp(cmd_to_run.program, cmd_to_run.args);
-                        perror("execv");
-                        exit(1);
-                } else { printf("inital process error out"); }   
-=======
->>>>>>> 6da53f64f47dabc1c74ef702ff95b3b4be101d33
         }
         return EXIT_SUCCESS;
 }
