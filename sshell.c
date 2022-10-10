@@ -168,7 +168,7 @@ void pwd_execution() {
 }
 
 void cd_execution(const char filename[256]) {
-        printf("here in cd");
+        printf("here in cd\n");
         int ret = chdir(filename);
         printf("%i\n", ret);
 }
@@ -190,9 +190,10 @@ int main(void) {
                 if (!strcmp(cmd, "exit")) {
                         fprintf(stderr, "Bye...\n");
                         break;
-                } else if (!strcmp(cmd, "cd")) {
-                        cd_execution()
-                } else if (!strcmp(cmd, "pwd")) {
+                } 
+                //cd in else, since it has 2 arguments
+                //else if (!strcmp(cmd, "cd")) { const char dot[256] = ".."; cd_execution(dot); } 
+                else if (!strcmp(cmd, "pwd")) {
                         // pwd command
                         pwd_execution();
 
@@ -202,7 +203,7 @@ int main(void) {
                         if (has_multiple_commands) {
                                 // todo: if multiple commands, ensure only last cmd can output redirect
                         } else {
-                                struct command_struct cmd_to_run = parse_single_cmd(cmd); // todo: add piepline to support multiple cmds
+                                struct command_struct cmd_to_run = parse_single_cmd(cmd); // todo: add pipeline to support multiple cmds
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
                                         pid_t pid;
