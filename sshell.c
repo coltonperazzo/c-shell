@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -90,28 +91,6 @@ void setup_multiple_cmds() {
 
 }
 
-void pwd_execution() {
-        //gotta deal with error handling
-        char buf[256];
-        printf("%s\n", getcwd(buf, sizeof(buf)));
-        /*
-        if (chdir("/tmp") != 0)
-                perror("chdir() error()");
-        else {
-                if (getcwd(cwd, sizeof(cwd)) == NULL)
-                        perror("getcwd() error");
-                else
-                        printf("current working directory is: %s\n", cwd);
-        }
-        */
-}
-
-void cd_execution(const char filename[256]) {
-        printf("here in cd\n");
-        int ret = chdir(filename);
-        printf("%i\n", ret);
-}
-
 struct command_struct parse_single_cmd(char *cmd) {
         char *prog = get_program_name(cmd);
         struct command_struct new_cmd;
@@ -119,6 +98,8 @@ struct command_struct parse_single_cmd(char *cmd) {
         new_cmd.program = prog;
         new_cmd.args[0] = prog;
         new_cmd.number_of_args = 1;
+        new_cmd.has_output_file = false;
+        new_cmd.has_input_file = false;
 
         // parse output
         char* has_output_file = strchr(cmd, '>');
@@ -150,7 +131,7 @@ struct command_struct parse_single_cmd(char *cmd) {
                         } else if (!strcmp(cmd_arg, ">")) {
                                 can_add_arg = false;
                         } else {
-                                if (has_output_file) {
+                                if (new_cmd.has_output_file) {
                                         if (strcmp(cmd_arg, new_cmd.output_file) == 0) {
                                                 can_add_arg = false;
                                         } 
@@ -233,6 +214,15 @@ int main(void) {
                                                 waitpid(pid, &return_value, 0);
                                                 fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
                                         } else if (pid == 0) { // child
+                                                if (cmd_to_run.has_output_file) {
+                                                        int fd;
+                                                        fd = open(cmd_to_run.output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                                        dup2(fd, 1);
+                                                        close(fd);
+                                                } else { 
+                                                        int stdout = dup(1);
+                                                        dup2(stdout, 1);
+                                                }
                                                 execvp(cmd_to_run.program, cmd_to_run.args);
                                                 int error_code = errno;
                                                 switch (error_code) {
