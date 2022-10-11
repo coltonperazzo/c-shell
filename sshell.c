@@ -70,7 +70,6 @@ bool check_if_invalid_commands(struct command_struct cmd_struct) {
         return false;
 }
 
-
 bool sanity_check_cmd(struct command_struct cmd_struct) {
         bool can_run = true;
         if (check_if_invalid_commands(cmd_struct)) { // leftmost
@@ -91,6 +90,28 @@ void setup_multiple_cmds() {
 
 }
 
+void pwd_execution() {
+        //gotta deal with error handling
+        char buf[256];
+        printf("%s\n", getcwd(buf, sizeof(buf)));
+        /*
+        if (chdir("/tmp") != 0)
+                perror("chdir() error()");
+        else {
+                if (getcwd(cwd, sizeof(cwd)) == NULL)
+                        perror("getcwd() error");
+                else
+                        printf("current working directory is: %s\n", cwd);
+        }
+        */
+}
+
+void cd_execution(const char filename[256]) {
+        printf("here in cd\n");
+        int ret = chdir(filename);
+        printf("%i\n", ret);
+}
+
 struct command_struct parse_single_cmd(char *cmd) {
         char *prog = get_program_name(cmd);
         struct command_struct new_cmd;
@@ -102,10 +123,12 @@ struct command_struct parse_single_cmd(char *cmd) {
         // parse output
         char* has_output_file = strchr(cmd, '>');
         if (has_output_file) {
+                printf("found output file\n");
                 new_cmd.has_output_file = true;
                 char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
                 strcpy(temp_cmd, cmd);
                 char *split_at_output = strchr(temp_cmd, '>')+1;
+                // todo: spit out an error its empty
                 new_cmd.output_file = strtok(split_at_output, " ");;
         }
 
@@ -127,10 +150,10 @@ struct command_struct parse_single_cmd(char *cmd) {
                         } else if (!strcmp(cmd_arg, ">")) {
                                 can_add_arg = false;
                         } else {
-                                if (new_cmd.has_output_file) {
+                                if (has_output_file) {
                                         if (strcmp(cmd_arg, new_cmd.output_file) == 0) {
                                                 can_add_arg = false;
-                                        }
+                                        } 
                                 }
                         }
                         if (can_add_arg) {
@@ -190,13 +213,10 @@ int main(void) {
                 if (!strcmp(cmd, "exit")) {
                         fprintf(stderr, "Bye...\n");
                         break;
-                } 
-                //cd in else, since it has 2 arguments
-                //else if (!strcmp(cmd, "cd")) { const char dot[256] = ".."; cd_execution(dot); } 
-                else if (!strcmp(cmd, "pwd")) {
-                        // pwd command
+                } else if (!strcmp(cmd, "cd")) {
+                        // cd command
+                } else if (!strcmp(cmd, "pwd")) {
                         pwd_execution();
-
                 } else {
                         //char* has_multiple_commands = strchr(cmd, '|');
                         bool has_multiple_commands = false; //temp;
