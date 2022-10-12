@@ -328,14 +328,14 @@ int main(void) {
                                 struct command_struct cmd_to_run = parse_single_cmd(cmd);
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
-                                        //printf("%s\n", cmd_to_run.program);
+                                        printf("%s\n", cmd_to_run.program);
                                         if (!strcmp(cmd_to_run.program, "cd")) {
                                                 cd_execution(cmd_to_run.args[1]);
                                                 continue;
                                         }
                                         pid_t pid;
                                         pid = fork();
-                                        //printf("pid: %i\n",pid);
+                                        printf("pid: %i\n",pid);
                                         if (pid > 0) { // parent
                                                 //printf("%i\n", pid);
                                                 int return_value;
@@ -352,6 +352,7 @@ int main(void) {
                                                         dup2(stdout, 1);
                                                 }
                                                 execvp(cmd_to_run.program, cmd_to_run.args);
+                                                
                                                 int error_code = errno;
                                                 switch (error_code) {
                                                         case 2:
