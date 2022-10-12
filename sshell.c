@@ -227,18 +227,61 @@ int main(void) {
                                                 number_of_commands++;
                                                 cmd_arg = strtok(NULL, "|");
                                         }
-                                        int cmd;
+                                        int cmd_s;
                                         bool invalid_command = false;
-                                        for(cmd = 0; cmd < number_of_commands; cmd++) {
-                                                struct command_struct cmd_to_run = parse_single_cmd(command_strings[cmd]);
-                                                commands[cmd] = cmd_to_run;
+                                        for(cmd_s = 0; cmd_s < number_of_commands; cmd_s++) {
+                                                struct command_struct cmd_to_run = parse_single_cmd(command_strings[cmd_s]);
+                                                commands[cmd_s] = cmd_to_run;
                                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                                 if (!can_run) {
                                                         invalid_command = true;
                                                 }
                                         }
                                         if (!invalid_command) {
-                                                // do pipeline stuff here
+                                                pid_t pids[number_of_commands];
+                                                pid_t pid;
+                                                pid = fork();
+                                                if (pid > 0) {
+                                                        int num_stat;
+                                                        int return_values[number_of_commands - 1];
+                                                        for (num_stat = 0; num_stat < number_of_commands - 1; num_stat++) {
+                                                                int return_value;
+                                                                waitpid(pids[num_stat], &return_value, 0);
+                                                                printf("exit status %d = %d\n", num_stat, WEXITSTATUS(return_value));
+                                                                return_values[num_stat] = return_value;
+                                                        }
+                                                        int last_return_value;
+                                                        waitpid(pid, &last_return_value, 0);
+                                                        if (number_of_commands > 2) {
+                                                                fprintf(stderr, "+ completed '%s': [%d][%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(return_values[1]), WEXITSTATUS(last_return_value));
+                                                        } else { fprintf(stderr, "+ completed '%s': [%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(last_return_value));}
+                                                } else if (pid == 0) {
+                                                        int cmd_n, in_pipe;
+                                                        int fd[2];
+                                                        in_pipe = STDIN_FILENO;
+                                                        for (cmd_n = 0; cmd_n < number_of_commands - 1; cmd_n++) {
+                                                                pipe(fd);
+                                                                if ((pids[cmd_n] = fork()) == 0) {
+                                                                        if (in_pipe != STDIN_FILENO) {
+                                                                                dup2(in_pipe, STDIN_FILENO);
+                                                                                close(in_pipe);
+                                                                        }
+                                                                        dup2(fd[1], STDOUT_FILENO);
+                                                                        close(fd[1]);
+                                                                        execvp(commands[cmd_n].program, commands[cmd_n].args);
+                                                                        exit(1); 
+                                                                }
+                                                                close(in_pipe);
+                                                                close(fd[1]);
+                                                                in_pipe = fd[0];
+                                                        }
+                                                        if (in_pipe != STDIN_FILENO) {
+                                                                dup2(in_pipe, STDIN_FILENO);
+                                                                close(in_pipe);
+                                                        }
+                                                        execvp(commands[cmd_n].program, commands[cmd_n].args);
+                                                        exit(1);
+                                                }
                                         }
                                  } else {
                                         fprintf(stderr, "Error: too many pipes\n");  
