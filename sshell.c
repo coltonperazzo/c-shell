@@ -94,6 +94,7 @@ bool sanity_check_cmd(struct command_struct cmd_struct) {
                 fprintf(stderr, "Error: missing command\n");
                 can_run = false;
         } else if (check_if_missing_output_file(cmd_struct)) { // 2nd leftmost
+        // todo: echo hello > fails
                 fprintf(stderr, "Error: no output file\n");
                 can_run = false;
         } else if (check_if_too_many_args(cmd_struct)) { // 3rd leftmost
@@ -117,7 +118,6 @@ struct command_struct parse_single_cmd(char *cmd) {
         // parse output
         char* has_output_file = strchr(cmd, '>');
         if (has_output_file) {
-                printf("found output file\n");
                 new_cmd.has_output_file = true;
                 char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
                 strcpy(temp_cmd, cmd);
@@ -228,10 +228,19 @@ int main(void) {
                                                 cmd_arg = strtok(NULL, "|");
                                         }
                                         int cmd;
+                                        bool invalid_command = false;
                                         for(cmd = 0; cmd < number_of_commands; cmd++) {
-                                                commands[cmd] = parse_single_cmd(command_strings[cmd]);
+                                                struct command_struct cmd_to_run = parse_single_cmd(command_strings[cmd]);
+                                                commands[cmd] = cmd_to_run;
+                                                bool can_run = sanity_check_cmd(cmd_to_run);
+                                                if (!can_run) {
+                                                        invalid_command = true;
+                                                }
                                         }
-                                } else {
+                                        if (!invalid_command) {
+                                                // do pipeline stuff here
+                                        }
+                                 } else {
                                         fprintf(stderr, "Error: too many pipes\n");  
                                 }
                         } else {
