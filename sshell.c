@@ -15,6 +15,9 @@
 
 #define CMDLINE_MAX 512
 #define ARGS_MAX 17
+#define SPACE_CHAR 32
+#define PIPE_MAX 2
+#define COMMANDS_MAX 3
 
 struct command_struct {
         char *full_cmd;
@@ -38,6 +41,20 @@ char *get_program_name(char *cmd) {
         strcpy(temp_prog, cmd);
         char *prog = strtok(temp_prog, " ");
         return prog;
+}
+
+bool check_if_too_many_pipes(char *cmd) {
+        int pipes = 0;
+        int i;
+        for (i = 0; i < strlen(cmd); i++) {
+                if (cmd[i] == '|') {
+                        pipes++;
+                }
+        }
+        if (pipes > PIPE_MAX) {
+                return true;
+        }
+        return false;
 }
 
 bool check_if_too_many_args(struct command_struct cmd_struct) {
@@ -85,10 +102,6 @@ bool sanity_check_cmd(struct command_struct cmd_struct) {
         }
         // todo: add more here
         return can_run;
-}
-
-void setup_multiple_cmds() {
-
 }
 
 struct command_struct parse_single_cmd(char *cmd) {
@@ -199,12 +212,30 @@ int main(void) {
                 } else if (!strcmp(cmd, "pwd")) {
                         pwd_execution();
                 } else {
-                        //char* has_multiple_commands = strchr(cmd, '|');
-                        bool has_multiple_commands = false; //temp;
+                        char* has_multiple_commands = strchr(cmd, '|');
                         if (has_multiple_commands) {
-                                // todo: if multiple commands, ensure only last cmd can output redirect
+                                if (!check_if_too_many_pipes(cmd)) {
+                                        char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
+                                        strcpy(temp_cmd, cmd);
+                                        char *cmd_arg = strtok(temp_cmd, "|");
+                                        struct command_struct commands[COMMANDS_MAX];
+                                        char *command_strings[COMMANDS_MAX];
+                                        int number_of_commands = 0;
+                                        while (cmd_arg != NULL) {
+                                                if (cmd_arg[0] == SPACE_CHAR) {cmd_arg++;}
+                                                command_strings[number_of_commands] = cmd_arg;
+                                                number_of_commands++;
+                                                cmd_arg = strtok(NULL, "|");
+                                        }
+                                        int cmd;
+                                        for(cmd = 0; cmd < number_of_commands; cmd++) {
+                                                commands[cmd] = parse_single_cmd(command_strings[cmd]);
+                                        }
+                                } else {
+                                        fprintf(stderr, "Error: too many pipes\n");  
+                                }
                         } else {
-                                struct command_struct cmd_to_run = parse_single_cmd(cmd); // todo: add pipeline to support multiple cmds
+                                struct command_struct cmd_to_run = parse_single_cmd(cmd);
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
                                         pid_t pid;
