@@ -167,10 +167,34 @@ void pwd_execution() {
         */
 }
 
-void cd_execution(const char filename[256]) {
-        printf("here in cd\n");
-        int ret = chdir(filename);
-        printf("%i\n", ret);
+void cd_execution(const char *filename) {
+        printf("%s", filename);
+        chdir(filename);
+        /*
+        printf("here in cd %s\n", filename);
+        char buf[256];
+        buf[0] = '\"';
+        for (int i=1; i<255; i++) {
+                if (filename[i-1] == '\0') {
+                        buf[i] = '\"';
+                        buf[i+1] = '\0';
+                        break;
+                }
+                buf[i] = filename[i-1];
+        }
+        */
+        //printf("%s\n", buf);
+        //printf("%i\n", chdir(".."));
+        //strcat("\"", buf);
+        //printf("2%s\n", buf);
+        //strcat(filename, buf);
+        //printf("3%s\n", buf);
+        //strcat("\"", buf);
+        //printf("4%s\n", buf);
+        //int ret = 
+        //chdir(getcwd(buf, sizeof(buf)));
+        //printf("result: %s, %i\n", buf, chdir(buf));
+        //chdir("..");
 }
 
 int main(void) {
@@ -190,30 +214,47 @@ int main(void) {
                 if (!strcmp(cmd, "exit")) {
                         fprintf(stderr, "Bye...\n");
                         break;
-                } 
-                //cd in else, since it has 2 arguments
-                //else if (!strcmp(cmd, "cd")) { const char dot[256] = ".."; cd_execution(dot); } 
+                }
+                //cd in else, since it has 2 arguments 
+                else if (!strcmp(cmd, "cd")) { 
+                        const char dot[256] = "..";
+                        printf("dot = %s\n", dot);
+                        cd_execution(dot);
+                }
                 else if (!strcmp(cmd, "pwd")) {
                         // pwd command
                         pwd_execution();
 
                 } else {
-                        //char* has_multiple_commands = strchr(cmd, '|');
-                        bool has_multiple_commands = false; //temp;
+                        //printf("%s\n", cmd);
+                        char* has_multiple_commands = strchr(cmd, '|');
+                        //printf("%s\n", has_multiple_commands);
+                        //bool has_multiple_commands = true; //temp;
                         if (has_multiple_commands) {
+                                printf("multiple commands\n");
                                 // todo: if multiple commands, ensure only last cmd can output redirect
                         } else {
+                                printf("not multiple commands\n");
                                 struct command_struct cmd_to_run = parse_single_cmd(cmd); // todo: add pipeline to support multiple cmds
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
+                                        printf("%s\n", cmd_to_run.program);
+                                        if (!strcmp(cmd_to_run.program, "cd")) {
+                                                cd_execution(cmd_to_run.args[1]);
+                                                continue;
+                                        }
                                         pid_t pid;
                                         pid = fork();
+                                        printf("pid: %i\n",pid);
                                         if (pid > 0) { // parent
+                                                //printf("%i\n", pid);
                                                 int return_value;
                                                 waitpid(pid, &return_value, 0);
                                                 fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
-                                        } else if (pid == 0) { // child
+                                        } 
+                                        else if (pid == 0) { // child
                                                 execvp(cmd_to_run.program, cmd_to_run.args);
+                                                
                                                 int error_code = errno;
                                                 switch (error_code) {
                                                         case 2:

@@ -1,6 +1,9 @@
-DEV=-Wall -Wextra -Werror
+DEV=-Wall -Wextra -Werror -g
 
 all: sshell
 
 sshell: sshell.c
-	gcc sshell.c -o sshell 
+	gcc sshell.c -o sshell
+
+clean: sshell
+	rm -f sshell
