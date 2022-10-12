@@ -9,11 +9,15 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
 #define CMDLINE_MAX 512
 #define ARGS_MAX 17
+#define SPACE_CHAR 32
+#define PIPE_MAX 2
+#define COMMANDS_MAX 3
 
 struct command_struct {
         char *full_cmd;
@@ -37,6 +41,20 @@ char *get_program_name(char *cmd) {
         strcpy(temp_prog, cmd);
         char *prog = strtok(temp_prog, " ");
         return prog;
+}
+
+bool check_if_too_many_pipes(char *cmd) {
+        int pipes = 0;
+        int i;
+        for (i = 0; i < strlen(cmd); i++) {
+                if (cmd[i] == '|') {
+                        pipes++;
+                }
+        }
+        if (pipes > PIPE_MAX) {
+                return true;
+        }
+        return false;
 }
 
 bool check_if_too_many_args(struct command_struct cmd_struct) {
@@ -70,13 +88,13 @@ bool check_if_invalid_commands(struct command_struct cmd_struct) {
         return false;
 }
 
-
 bool sanity_check_cmd(struct command_struct cmd_struct) {
         bool can_run = true;
         if (check_if_invalid_commands(cmd_struct)) { // leftmost
                 fprintf(stderr, "Error: missing command\n");
                 can_run = false;
         } else if (check_if_missing_output_file(cmd_struct)) { // 2nd leftmost
+        // todo: echo hello > fails
                 fprintf(stderr, "Error: no output file\n");
                 can_run = false;
         } else if (check_if_too_many_args(cmd_struct)) { // 3rd leftmost
@@ -87,10 +105,6 @@ bool sanity_check_cmd(struct command_struct cmd_struct) {
         return can_run;
 }
 
-void setup_multiple_cmds() {
-
-}
-
 struct command_struct parse_single_cmd(char *cmd) {
         char *prog = get_program_name(cmd);
         struct command_struct new_cmd;
@@ -98,6 +112,8 @@ struct command_struct parse_single_cmd(char *cmd) {
         new_cmd.program = prog;
         new_cmd.args[0] = prog;
         new_cmd.number_of_args = 1;
+        new_cmd.has_output_file = false;
+        new_cmd.has_input_file = false;
 
         // parse output
         char* has_output_file = strchr(cmd, '>');
@@ -106,6 +122,7 @@ struct command_struct parse_single_cmd(char *cmd) {
                 char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
                 strcpy(temp_cmd, cmd);
                 char *split_at_output = strchr(temp_cmd, '>')+1;
+                // todo: spit out an error its empty
                 new_cmd.output_file = strtok(split_at_output, " ");;
         }
 
@@ -130,7 +147,7 @@ struct command_struct parse_single_cmd(char *cmd) {
                                 if (new_cmd.has_output_file) {
                                         if (strcmp(cmd_arg, new_cmd.output_file) == 0) {
                                                 can_add_arg = false;
-                                        }
+                                        } 
                                 }
                         }
                         if (can_add_arg) {
@@ -224,18 +241,83 @@ int main(void) {
                 else if (!strcmp(cmd, "pwd")) {
                         // pwd command
                         pwd_execution();
-
                 } else {
-                        //printf("%s\n", cmd);
                         char* has_multiple_commands = strchr(cmd, '|');
-                        //printf("%s\n", has_multiple_commands);
-                        //bool has_multiple_commands = true; //temp;
                         if (has_multiple_commands) {
-                                printf("multiple commands\n");
-                                // todo: if multiple commands, ensure only last cmd can output redirect
+                                if (!check_if_too_many_pipes(cmd)) {
+                                        char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
+                                        strcpy(temp_cmd, cmd);
+                                        char *cmd_arg = strtok(temp_cmd, "|");
+                                        struct command_struct commands[COMMANDS_MAX];
+                                        char *command_strings[COMMANDS_MAX];
+                                        int number_of_commands = 0;
+                                        while (cmd_arg != NULL) {
+                                                if (cmd_arg[0] == SPACE_CHAR) {cmd_arg++;}
+                                                command_strings[number_of_commands] = cmd_arg;
+                                                number_of_commands++;
+                                                cmd_arg = strtok(NULL, "|");
+                                        }
+                                        int cmd_s;
+                                        bool invalid_command = false;
+                                        for(cmd_s = 0; cmd_s < number_of_commands; cmd_s++) {
+                                                struct command_struct cmd_to_run = parse_single_cmd(command_strings[cmd_s]);
+                                                commands[cmd_s] = cmd_to_run;
+                                                bool can_run = sanity_check_cmd(cmd_to_run);
+                                                if (!can_run) {
+                                                        invalid_command = true;
+                                                }
+                                        }
+                                        if (!invalid_command) {
+                                                pid_t pids[number_of_commands];
+                                                pid_t pid;
+                                                pid = fork();
+                                                if (pid > 0) {
+                                                        int num_stat;
+                                                        int return_values[number_of_commands - 1];
+                                                        for (num_stat = 0; num_stat < number_of_commands - 1; num_stat++) {
+                                                                int return_value;
+                                                                waitpid(pids[num_stat], &return_value, 0);
+                                                                printf("exit status %d = %d\n", num_stat, WEXITSTATUS(return_value));
+                                                                return_values[num_stat] = return_value;
+                                                        }
+                                                        int last_return_value;
+                                                        waitpid(pid, &last_return_value, 0);
+                                                        if (number_of_commands > 2) {
+                                                                fprintf(stderr, "+ completed '%s': [%d][%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(return_values[1]), WEXITSTATUS(last_return_value));
+                                                        } else { fprintf(stderr, "+ completed '%s': [%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(last_return_value));}
+                                                } else if (pid == 0) {
+                                                        int cmd_n, in_pipe;
+                                                        int fd[2];
+                                                        in_pipe = STDIN_FILENO;
+                                                        for (cmd_n = 0; cmd_n < number_of_commands - 1; cmd_n++) {
+                                                                pipe(fd);
+                                                                if ((pids[cmd_n] = fork()) == 0) {
+                                                                        if (in_pipe != STDIN_FILENO) {
+                                                                                dup2(in_pipe, STDIN_FILENO);
+                                                                                close(in_pipe);
+                                                                        }
+                                                                        dup2(fd[1], STDOUT_FILENO);
+                                                                        close(fd[1]);
+                                                                        execvp(commands[cmd_n].program, commands[cmd_n].args);
+                                                                        exit(1); 
+                                                                }
+                                                                close(in_pipe);
+                                                                close(fd[1]);
+                                                                in_pipe = fd[0];
+                                                        }
+                                                        if (in_pipe != STDIN_FILENO) {
+                                                                dup2(in_pipe, STDIN_FILENO);
+                                                                close(in_pipe);
+                                                        }
+                                                        execvp(commands[cmd_n].program, commands[cmd_n].args);
+                                                        exit(1);
+                                                }
+                                        }
+                                 } else {
+                                        fprintf(stderr, "Error: too many pipes\n");  
+                                }
                         } else {
-                                printf("not multiple commands\n");
-                                struct command_struct cmd_to_run = parse_single_cmd(cmd); // todo: add pipeline to support multiple cmds
+                                struct command_struct cmd_to_run = parse_single_cmd(cmd);
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
                                         printf("%s\n", cmd_to_run.program);
@@ -251,8 +333,16 @@ int main(void) {
                                                 int return_value;
                                                 waitpid(pid, &return_value, 0);
                                                 fprintf(stderr, "+ completed '%s': [%d]\n", cmd, WEXITSTATUS(return_value));
-                                        } 
-                                        else if (pid == 0) { // child
+                                        } else if (pid == 0) { // child
+                                                if (cmd_to_run.has_output_file) {
+                                                        int fd;
+                                                        fd = open(cmd_to_run.output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                                        dup2(fd, 1);
+                                                        close(fd);
+                                                } else { 
+                                                        int stdout = dup(1);
+                                                        dup2(stdout, 1);
+                                                }
                                                 execvp(cmd_to_run.program, cmd_to_run.args);
                                                 
                                                 int error_code = errno;
