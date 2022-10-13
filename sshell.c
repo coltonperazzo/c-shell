@@ -20,6 +20,9 @@
 #define PIPE_MAX 3
 #define COMMANDS_MAX 4
 
+#define OUTPUT_KEY 0
+#define INPUT_KEY 1
+
 struct command_struct {
         int cmd_id;
         int total_cmds;
@@ -69,50 +72,7 @@ bool check_if_too_many_args(struct command_struct cmd_struct) {
         return false;
 }
 
-bool check_if_missing_output_file(struct command_struct cmd_struct) {
-        if (cmd_struct.has_output_file) {
-                if (cmd_struct.full_cmd[strlen(cmd_struct.full_cmd)-1] == '>') {
-                        return true;
-                }
-                if(cmd_struct.output_file == NULL) {
-                        return true;
-                } 
-        }
-        return false;
-}
-
-bool check_if_missing_input_file(struct command_struct cmd_struct) {
-        if (cmd_struct.has_input_file) {
-                if (cmd_struct.full_cmd[strlen(cmd_struct.full_cmd)-1] == '<') {
-                        return true;
-                }
-                if(cmd_struct.input_file == NULL) {
-                        return true;
-                }
-        }
-        return false;
-}
-
-bool check_if_output_file_does_not_exist(struct command_struct cmd_struct) {
-        if (cmd_struct.has_output_file) {
-                char *includes_redirect = strchr(cmd_struct.output_file, '/');
-                if (includes_redirect) {
-                        return true;
-                }
-        }
-        return false;
-}
-
-bool check_if_input_file_does_not_exist(struct command_struct cmd_struct) {
-        if (cmd_struct.has_input_file) {
-                if(access(cmd_struct.input_file, F_OK) != 0) {
-                        return true;
-                }
-        }
-        return false;
-}
-
-bool check_if_invalid_commands(struct command_struct cmd_struct) {
+bool check_if_invalid_command(struct command_struct cmd_struct) {
         if (cmd_struct.program[0] == '>' || cmd_struct.program[0] == '|') {
                 return true;
         } else {
@@ -123,54 +83,111 @@ bool check_if_invalid_commands(struct command_struct cmd_struct) {
         return false;
 }
 
-bool check_if_piping_output_is_mislocated(struct command_struct cmd_struct) {
-        if (cmd_struct.has_output_file) {
-                if (cmd_struct.cmd_id != cmd_struct.total_cmds) {
-                        return true;
-                }
+bool check_if_missing_inputoutput_file(struct command_struct cmd_struct, int mode) {
+        bool missing_file = false;
+        switch (mode) {
+                case OUTPUT_KEY:
+                        if (cmd_struct.has_output_file) {
+                                if (cmd_struct.full_cmd[strlen(cmd_struct.full_cmd)-1] == '>') {
+                                        missing_file = true;
+                                } else {
+                                        if(cmd_struct.output_file == NULL) {missing_file = true;} 
+                                }
+                        }
+                default:
+                        if (cmd_struct.has_input_file) {
+                                if (cmd_struct.full_cmd[strlen(cmd_struct.full_cmd)-1] == '<') {
+                                        missing_file = true;
+                                } else {
+                                        if (cmd_struct.input_file == NULL) {missing_file = true;}
+                                }
+                        }
         }
-        return false;
+        return missing_file;
 }
 
-bool check_if_piping_input_is_mislocated(struct command_struct cmd_struct) {
-        if (cmd_struct.has_input_file) {
-                if (cmd_struct.cmd_id != 0) {
-                        return true;
-                }
+bool check_if_inputouput_file_is_null(struct command_struct cmd_struct, int mode) {
+        bool null_file = false;
+        switch (mode) {
+                case OUTPUT_KEY:
+                       if (cmd_struct.has_output_file) {
+                                char *includes_redirect = strchr(cmd_struct.output_file, '/');
+                                if (includes_redirect) {
+                                        null_file = true;
+                                }
+                        } 
+                default:
+                        if (cmd_struct.has_input_file) {
+                                if(access(cmd_struct.input_file, F_OK) != 0) {
+                                        null_file = true;
+                                }
+                        }
+                        
         }
-        return false;
+        return null_file;
+}
+
+bool check_if_piping_inputpout_is_mislocated(struct command_struct cmd_struct, int mode) {
+        bool mislocated = false;
+        switch (mode) {
+                case OUTPUT_KEY:
+                        if (cmd_struct.has_output_file) {
+                                if (cmd_struct.cmd_id != cmd_struct.total_cmds) {
+                                        mislocated = true;
+                                }
+                        }
+                default:
+                        if (cmd_struct.has_input_file) {
+                                if (cmd_struct.cmd_id != 0) {
+                                        mislocated = true;
+                                }
+                        }
+
+        }
+        return mislocated;
 }
 
 bool sanity_check_cmd(struct command_struct cmd_struct) {
-        bool can_run = true;
-        if (check_if_invalid_commands(cmd_struct)) { // leftmost
+        bool can_cmd_run = true;
+        if (check_if_invalid_command(cmd_struct)) {
                 fprintf(stderr, "Error: missing command\n");
-                can_run = false;
-        } else if (check_if_missing_output_file(cmd_struct)) { // 2nd leftmost
-        // todo: echo hello > fails
-                fprintf(stderr, "Error: no output file\n");
-                can_run = false;
-        } else if (check_if_missing_input_file(cmd_struct)) {
-                fprintf(stderr, "Error: no input file\n");
-                can_run = false;
-        } else if (check_if_output_file_does_not_exist(cmd_struct)) {
-                fprintf(stderr, "Error: cannot open output file\n");
-                can_run = false;
-        } else if (check_if_piping_output_is_mislocated(cmd_struct)) {
-                fprintf(stderr, "Error: mislocated output redirection\n");
-                can_run = false;
-        } else if (check_if_piping_input_is_mislocated(cmd_struct)) {
-                fprintf(stderr, "Error: mislocated input redirection\n");
-                can_run = false;
-        } else if (check_if_input_file_does_not_exist(cmd_struct)) {
-                fprintf(stderr, "Error: cannot open input file\n");
-                can_run = false;
-        } else if (check_if_too_many_args(cmd_struct)) { // 3rd leftmost
-                fprintf(stderr, "Error: too many process arguments\n");
-                can_run = false;
+                return false;
+        } else {
+                if (cmd_struct.has_output_file) {
+                        if (check_if_missing_inputoutput_file(cmd_struct, OUTPUT_KEY)) { 
+                                fprintf(stderr, "Error: no output file\n");
+                                return false;
+                        }
+                        if(check_if_piping_inputpout_is_mislocated(cmd_struct, OUTPUT_KEY)) {
+                                fprintf(stderr, "Error: mislocated output redirection\n");
+                                return false;
+                        }
+                        if (check_if_inputouput_file_is_null(cmd_struct, OUTPUT_KEY)) {
+                                fprintf(stderr, "Error: cannot open output file\n");
+                                return false;
+                        }
+                }
+                if (cmd_struct.has_input_file) {
+                        if (check_if_missing_inputoutput_file(cmd_struct, INPUT_KEY)) {
+                                fprintf(stderr, "Error: no input file\n");
+                                return false;
+                        }
+                        if (check_if_piping_inputpout_is_mislocated(cmd_struct, INPUT_KEY)) {
+                                fprintf(stderr, "Error: mislocated input redirection\n");
+                                return false;
+                        }
+                        if (check_if_inputouput_file_is_null(cmd_struct, INPUT_KEY)) {
+                                fprintf(stderr, "Error: cannot open input file\n");
+                                return false;
+                        }
+                }
+                if (check_if_too_many_args(cmd_struct)) {
+                        fprintf(stderr, "Error: too many process arguments\n");
+                        return false;
+                }
+
         }
-        // todo: add more here
-        return can_run;
+        return true;
 }
 
 struct command_struct parse_single_cmd(char *cmd, int num, int total) {
@@ -202,12 +219,10 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
         }
         if (strlen(prog) == strlen(cmd)) { new_cmd.args[1] = NULL; }
         else {
-                printf("inserted cmd: %s\n", cmd);
                 char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
                 strcpy(temp_cmd, cmd);
                 char *cmd_arg = strtok(temp_cmd, " ");
                 while (cmd_arg != NULL) {
-                        printf("testing arg: %s\n", cmd_arg);
                         bool can_add_arg = true;
                         if (!strcmp(cmd_arg, prog)) {
                                 can_add_arg = false;
@@ -233,9 +248,7 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
                                         char *temp_cmd_output = calloc(strlen(cmd_arg)+1, sizeof(char));
                                         strcpy(temp_cmd_output, cmd_arg);
                                         char *cmd_arg_output = strtok(temp_cmd_output, ">");
-                                        printf("got: %s\n", cmd_arg_output);
                                         if (strcmp(cmd_arg_output, new_cmd.output_file)) {
-                                                printf("adding arg: %s\n", cmd_arg_output);
                                                 new_cmd.args[new_cmd.number_of_args] = cmd_arg_output;
                                                 new_cmd.number_of_args = new_cmd.number_of_args + 1;
                                         }
@@ -272,16 +285,16 @@ void pwd_execution() {
 }
 
 void cd_execution(const char *filename) {
-        int ret = chdir(filename[1]);
-	fprintf(stderr, "+ completed  '%s': [%d]\n", filename, WEXITSTATUS(ret));
-	int error_code = errno;
+        //int ret = chdir(filename[1]);
+	//fprintf(stderr, "+ completed  '%s': [%d]\n", filename, WEXITSTATUS(ret));
+	//int error_code = errno;
 	
 	
-	switch (error_code) {
-		case 2:
-			fprintf(stderr, "Error: command not found\n");  
-	}
-	exit(1);
+	//switch (error_code) {
+		//case 2:
+			//fprintf(stderr, "Error: command not found\n");  
+	//}
+	//exit(1);
 }
 
 int main(void) {
