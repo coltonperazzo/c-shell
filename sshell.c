@@ -186,33 +186,16 @@ void pwd_execution() {
 }
 
 void cd_execution(const char *filename) {
-        //printf("%s", filename);
-        chdir(filename);
-        /*
-        printf("here in cd %s\n", filename);
-        char buf[256];
-        buf[0] = '\"';
-        for (int i=1; i<255; i++) {
-                if (filename[i-1] == '\0') {
-                        buf[i] = '\"';
-                        buf[i+1] = '\0';
-                        break;
-                }
-                buf[i] = filename[i-1];
-        }
-        */
-        //printf("%s\n", buf);
-        //printf("%i\n", chdir(".."));
-        //strcat("\"", buf);
-        //printf("2%s\n", buf);
-        //strcat(filename, buf);
-        //printf("3%s\n", buf);
-        //strcat("\"", buf);
-        //printf("4%s\n", buf);
-        //int ret = 
-        //chdir(getcwd(buf, sizeof(buf)));
-        //printf("result: %s, %i\n", buf, chdir(buf));
-        //chdir("..");
+        int ret = chdir(filename[1]);
+	fprintf(stderr, "+ completed  '%s': [%d]\n", filename, WEXITSTATUS(ret));
+	int error_code = errno;
+	
+	
+	switch (error_code) {
+		case 2:
+			fprintf(stderr, "Error: command not found\n");  
+	}
+	exit(1);
 }
 
 int main(void) {
@@ -233,22 +216,25 @@ int main(void) {
                         fprintf(stderr, "Bye...\n");
                         break;
                 }
-                //cd in else, since it has 2 arguments 
-                else if (!strcmp(cmd, "cd")) { 
+                //cd in else, since it has 2 arguments
+                /*else if (!strcmp(cmd, "cd")) { 
                         const char dot[256] = "..";
                         //printf("dot = %s\n", dot);
                         cd_execution(dot);
-                }
+                }*/
                 else if (!strcmp(cmd, "pwd")) {
-                        // pwd command
                         pwd_execution();
-                } else if (!strcmp(cmd, "pushd")) {
+                } 
+                else if (!strcmp(cmd, "pushd")) {
 
-                } else if (!strcmp(cmd, "popd")) {
+                } 
+                else if (!strcmp(cmd, "popd")) {
 
-                } else if (!strcmp(cmd, "dirs")) {
+                } 
+                else if (!strcmp(cmd, "dirs")) {
 
-                } else {
+                } 
+                else {
                         char* has_multiple_commands = strchr(cmd, '|');
                         if (has_multiple_commands) {
                                 if (!check_if_too_many_pipes(cmd)) {
@@ -328,9 +314,9 @@ int main(void) {
                                 struct command_struct cmd_to_run = parse_single_cmd(cmd);
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
-                                        //printf("%s\n", cmd_to_run.program);
                                         if (!strcmp(cmd_to_run.program, "cd")) {
-                                                cd_execution(cmd_to_run.args[1]);
+                                                printf("about to execute cd\n"); 
+						cd_execution(cmd);
                                                 continue;
                                         }
                                         pid_t pid;
@@ -351,6 +337,7 @@ int main(void) {
                                                         int stdout = dup(1);
                                                         dup2(stdout, 1);
                                                 }
+
                                                 execvp(cmd_to_run.program, cmd_to_run.args);
                                                 
                                                 int error_code = errno;
