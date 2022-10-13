@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 
@@ -21,7 +22,7 @@
 
 struct command_struct {
         char *full_cmd;
-        char *program; // date, ls, cd, exit
+        char *program;
         char *args[ARGS_MAX];
         char *output_file; 
         bool has_output_file;
@@ -241,6 +242,12 @@ int main(void) {
                 else if (!strcmp(cmd, "pwd")) {
                         // pwd command
                         pwd_execution();
+                } else if (!strcmp(cmd, "pushd")) {
+
+                } else if (!strcmp(cmd, "popd")) {
+
+                } else if (!strcmp(cmd, "dirs")) {
+
                 } else {
                         char* has_multiple_commands = strchr(cmd, '|');
                         if (has_multiple_commands) {
@@ -268,30 +275,31 @@ int main(void) {
                                                 }
                                         }
                                         if (!invalid_command) {
-                                                pid_t pids[number_of_commands];
+                                                size_t cmd_size = number_of_commands;
+                                                pid_t *shared_return_values = mmap(NULL, cmd_size,
+                                                        PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED,
+                                                        -1, 0);
                                                 pid_t pid;
                                                 pid = fork();
                                                 if (pid > 0) {
-                                                        int num_stat;
-                                                        int return_values[number_of_commands - 1];
-                                                        for (num_stat = 0; num_stat < number_of_commands - 1; num_stat++) {
-                                                                int return_value;
-                                                                waitpid(pids[num_stat], &return_value, 0);
-                                                                printf("exit status %d = %d\n", num_stat, WEXITSTATUS(return_value));
-                                                                return_values[num_stat] = return_value;
-                                                        }
-                                                        int last_return_value;
-                                                        waitpid(pid, &last_return_value, 0);
+                                                        int return_value;
+                                                        waitpid(pid, &return_value, 0);
                                                         if (number_of_commands > 2) {
-                                                                fprintf(stderr, "+ completed '%s': [%d][%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(return_values[1]), WEXITSTATUS(last_return_value));
-                                                        } else { fprintf(stderr, "+ completed '%s': [%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(last_return_value));}
+                                                                fprintf(stderr, "+ completed '%s': [%d][%d][%d]\n", cmd, WEXITSTATUS(shared_return_values[2]), WEXITSTATUS(shared_return_values[1]), WEXITSTATUS(return_value));
+                                                        } else { fprintf(stderr, "+ completed '%s': [%d][%d]\n", cmd, WEXITSTATUS(shared_return_values[1]), WEXITSTATUS(return_value));}
                                                 } else if (pid == 0) {
                                                         int cmd_n, in_pipe;
                                                         int fd[2];
                                                         in_pipe = STDIN_FILENO;
                                                         for (cmd_n = 0; cmd_n < number_of_commands - 1; cmd_n++) {
                                                                 pipe(fd);
-                                                                if ((pids[cmd_n] = fork()) == 0) {
+                                                                pid_t child_pid;
+                                                                child_pid = fork();
+                                                                if (child_pid > 0) {
+                                                                        int return_value;
+                                                                        waitpid(child_pid, &return_value, 0);
+                                                                        shared_return_values[cmd_n] = return_value;
+                                                                } else if (child_pid == 0) {
                                                                         if (in_pipe != STDIN_FILENO) {
                                                                                 dup2(in_pipe, STDIN_FILENO);
                                                                                 close(in_pipe);
