@@ -1,5 +1,5 @@
 // sshell.c
-// Colton Perazzo and Necz András 
+// Colton Perazzo and András Necz 
 // ECS 150, University of California, Davis
 
 #include <stdio.h>
@@ -17,8 +17,8 @@
 #define CMDLINE_MAX 512
 #define ARGS_MAX 17
 #define SPACE_CHAR 32
-#define PIPE_MAX 2
-#define COMMANDS_MAX 3
+#define PIPE_MAX 3
+#define COMMANDS_MAX 4
 
 struct command_struct {
         char *full_cmd;
@@ -172,7 +172,7 @@ int file_name_errors(int err) {
 void pwd_execution() {
         //gotta deal with error handling
         char buf[256];
-        printf("%s\n", getcwd(buf, sizeof(buf)));
+        //printf("%s\n", getcwd(buf, sizeof(buf)));
         /*
         if (chdir("/tmp") != 0)
                 perror("chdir() error()");
@@ -186,7 +186,7 @@ void pwd_execution() {
 }
 
 void cd_execution(const char *filename) {
-        printf("%s", filename);
+        //printf("%s", filename);
         chdir(filename);
         /*
         printf("here in cd %s\n", filename);
@@ -236,7 +236,7 @@ int main(void) {
                 //cd in else, since it has 2 arguments 
                 else if (!strcmp(cmd, "cd")) { 
                         const char dot[256] = "..";
-                        printf("dot = %s\n", dot);
+                        //printf("dot = %s\n", dot);
                         cd_execution(dot);
                 }
                 else if (!strcmp(cmd, "pwd")) {
@@ -328,14 +328,14 @@ int main(void) {
                                 struct command_struct cmd_to_run = parse_single_cmd(cmd);
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
-                                        printf("%s\n", cmd_to_run.program);
+                                        //printf("%s\n", cmd_to_run.program);
                                         if (!strcmp(cmd_to_run.program, "cd")) {
                                                 cd_execution(cmd_to_run.args[1]);
                                                 continue;
                                         }
                                         pid_t pid;
                                         pid = fork();
-                                        printf("pid: %i\n",pid);
+                                        //printf("pid: %i\n",pid);
                                         if (pid > 0) { // parent
                                                 //printf("%i\n", pid);
                                                 int return_value;
