@@ -373,6 +373,12 @@ int main(void) {
                                                                 close(fd_1[0]); // close pipe 1 read
                                                                 dup2(fd_1[1], STDOUT_FILENO);
                                                                 close(fd_1[1]); // close pipe 1 write
+                                                                if (commands[0].has_input_file) { // check input for pipe
+                                                                        int fd_input;
+                                                                        fd_input = open(commands[0].input_file, O_RDONLY);
+                                                                        dup2(fd_input, STDIN_FILENO);
+                                                                        close(fd_input);
+                                                                }
                                                                 execvp(commands[0].program, commands[0].args);
                                                         }
                                                         pipe(fd_2);
@@ -386,6 +392,14 @@ int main(void) {
                                                                         close(fd_2[0]); // close pipe 2 read
                                                                         dup2(fd_2[1], STDOUT_FILENO);
                                                                         close(fd_2[1]); // close pipe 2 write
+                                                                }
+                                                                if(commands[1].has_output_file) {
+                                                                        if(commands[1].cmd_id == commands[1].total_cmds) {
+                                                                                int fd_output;
+                                                                                fd_output = open(commands[1].output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                                                                dup2(fd_output, STDOUT_FILENO);
+                                                                                close(fd_output);
+                                                                        } 
                                                                 }
                                                                 execvp(commands[1].program, commands[1].args);
                                                         }
@@ -404,6 +418,14 @@ int main(void) {
                                                                                 dup2(fd_3[1], STDOUT_FILENO);
                                                                                 close(fd_3[1]); // close pipe 3 write
                                                                         }
+                                                                        if(commands[2].has_output_file) {
+                                                                                if(commands[2].cmd_id == commands[2].total_cmds) {
+                                                                                        int fd_output;
+                                                                                        fd_output = open(commands[2].output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                                                                        dup2(fd_output, STDOUT_FILENO);
+                                                                                        close(fd_output);
+                                                                                } 
+                                                                        }
                                                                         execvp(commands[2].program, commands[2].args);
                                                                 }
                                                                 close(fd_2[1]);
@@ -415,6 +437,14 @@ int main(void) {
                                                                                 close(fd_3[1]);
                                                                                 dup2(fd_3[0], STDIN_FILENO);
                                                                                 close(fd_3[0]);
+                                                                                if(commands[3].has_output_file) {
+                                                                                        if(commands[3].cmd_id == commands[3].total_cmds) {
+                                                                                                int fd_output;
+                                                                                                fd_output = open(commands[3].output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                                                                                dup2(fd_output, STDOUT_FILENO);
+                                                                                                close(fd_output);
+                                                                                        } 
+                                                                                }
                                                                                 execvp(commands[3].program, commands[3].args);  
                                                                         }
                                                                         close(fd_3[1]);
