@@ -398,14 +398,11 @@ int main(void) {
 
                         struct Node *tmp = Top;
                         char* next_dir = malloc(sizeof(char)*256);
-                        strcpy(next_dir, top_node->dir); //to store data of top node
-                        top_node = top_node->next;
+                        strcpy(next_dir, Top->dir); //to store data of top node
+                        Top = tmp->next;
                         free(tmp->dir);
                         free(tmp); //deleting the node
 
-
-        
-                        
                         char cur_dir[256];
                         if (getcwd(cur_dir, sizeof(cur_dir)) == NULL)
                                 perror("getcwd() error");
@@ -671,9 +668,9 @@ int main(void) {
                                                 }
                                                 else {
                                                         //printf("not top");
-                                                        nodes->next = top_node;
+                                                        nodes->next = Top;
                                                 }
-                                                top_node = nodes;
+                                                Top = nodes;
                                                 //printf("%s\n", nodes->dir);
                                         } else {
                                                 pid_t pid;
