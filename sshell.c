@@ -43,10 +43,6 @@ struct command_struct {
         int number_of_args;
 };
 
-struct stack {
-        int top_stack;
-};
-
 /*
 Returns a character of the program name parsed from the cmd put into the terminal.
 @param char *cmd => command inserted into terminal (ex: echo hello world)
@@ -300,7 +296,6 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
                 strcpy(temp_cmd, edited_cmd);
                 char *cmd_arg = strtok(temp_cmd, " ");
                 while (cmd_arg != NULL) {
-                        printf("testing arg: %s\n", cmd_arg);
                         bool can_add_arg = true;
                         if (!strcmp(cmd_arg, prog)) { // If arg is program name, ignore.
                                 can_add_arg = false;
@@ -364,19 +359,6 @@ char* pwd_execution() {
 
 }
 
-void cd_execution(const char *filename) {
-        int ret = chdir(filename[1]);
-	fprintf(stderr, "+ completed  '%s': [%d]\n", filename, WEXITSTATUS(ret));
-	int error_code = errno;
-	
-	
-	switch (error_code) {
-		case 2:
-			fprintf(stderr, "Error: command not found\n");  
-	}
-	exit(1);
-}
-
 int main(void) {
         char cmd[CMDLINE_MAX];
         struct Node* Top = NULL;
@@ -400,7 +382,6 @@ int main(void) {
                 else if (!strcmp(cmd, "pwd")) {
                         pwd_execution();
                 } 
-
                 else if (!strcmp(cmd, "popd")) {
                         printf("%s\n",Top->dir);
                         struct Node *tmp = Top;
@@ -646,12 +627,15 @@ int main(void) {
                                 struct command_struct cmd_to_run = parse_single_cmd(cmd, 0, 0); 
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
-                                        if (!strcmp(cmd_to_run.program, "cd")) {
-                                                printf("about to execute cd\n"); 
-						cd_execution(cmd);
-                                                continue;
-                                        }
-                                        else if (!strcmp(cmd_to_run.program, "pushd")) {
+                                        if (!strcmp(cmd_to_run.program, "cd")) { // cd command built-in.
+                                                int ret = chdir(cmd_to_run.args[1]);
+                                                fprintf(stderr, "+ completed  '%s' [%d]\n", cmd_to_run.full_cmd, WEXITSTATUS(ret));
+                                                int error_code = errno;
+                                                switch (error_code) {
+                                                        case 2:
+                                                                fprintf(stderr, "Error: command not found\n");  
+                                                }
+                                        } else if (!strcmp(cmd_to_run.program, "pushd")) {
                                                 int ret = chdir(cmd_to_run.args[1]);
                                                 if (ret) {
                                                         fprintf(stderr, "Error: cannot push directory\n");
@@ -683,42 +667,41 @@ int main(void) {
                                                 }
                                                 Top = nodes;
                                                 //printf("%s\n", nodes->dir);
-                                                
-                                                
-                                        }
-                                        pid_t pid;
-                                        pid = fork();
-                                        if (pid > 0) { // Parent process.
-                                                int return_value;
-                                                // Wait for exit status.
-                                                waitpid(pid, &return_value, 0);
-                                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(return_value));
-                                        } else if (pid == 0) { // Child process.
-                                                if (cmd_to_run.has_output_file) {
-                                                        // If we have an output file, redirect STDOUT.
-                                                        int fd_output;
-                                                        fd_output = open(cmd_to_run.output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                                                        dup2(fd_output, STDOUT_FILENO);
-                                                        close(fd_output); // Close.
-                                                } else { 
-                                                        if (cmd_to_run.has_input_file) {
-                                                                // If we have an input file, redirect STDIN.
-                                                                int fd_input;
-                                                                fd_input = open(cmd_to_run.input_file, O_RDONLY);
-                                                                dup2(fd_input, STDIN_FILENO);
-                                                                close(fd_input); // Close.
+                                        } else {
+                                                pid_t pid;
+                                                pid = fork();
+                                                if (pid > 0) { // Parent process.
+                                                        int return_value;
+                                                        // Wait for exit status.
+                                                        waitpid(pid, &return_value, 0);
+                                                        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(return_value));
+                                                } else if (pid == 0) { // Child process.
+                                                        if (cmd_to_run.has_output_file) {
+                                                                // If we have an output file, redirect STDOUT.
+                                                                int fd_output;
+                                                                fd_output = open(cmd_to_run.output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                                                dup2(fd_output, STDOUT_FILENO);
+                                                                close(fd_output); // Close.
+                                                        } else { 
+                                                                if (cmd_to_run.has_input_file) {
+                                                                        // If we have an input file, redirect STDIN.
+                                                                        int fd_input;
+                                                                        fd_input = open(cmd_to_run.input_file, O_RDONLY);
+                                                                        dup2(fd_input, STDIN_FILENO);
+                                                                        close(fd_input); // Close.
+                                                                }
                                                         }
-                                                }
-                                                // Run command.
-                                                execvp(cmd_to_run.program, cmd_to_run.args);
-                                                int error_code = errno; // Gather error if it exists;
-                                                switch (error_code) {
-                                                        case 2:
-                                                                // Command was not valid (ex: windows98)
-                                                                fprintf(stderr, "Error: command not found\n");  
-                                                }
-                                                exit(1);
-                                        } else { printf("Error: fork cannot be created\n"); break; }
+                                                        // Run command.
+                                                        execvp(cmd_to_run.program, cmd_to_run.args);
+                                                        int error_code = errno; // Gather error if it exists;
+                                                        switch (error_code) {
+                                                                case 2:
+                                                                        // Command was not valid (ex: windows98)
+                                                                        fprintf(stderr, "Error: command not found\n");  
+                                                        }
+                                                        exit(1);
+                                                } else { printf("Error: fork cannot be created\n"); break; }
+                                        }
                                 }
                         }
                 }
