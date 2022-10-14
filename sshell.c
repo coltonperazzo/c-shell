@@ -619,12 +619,12 @@ int main(void) {
                                 if (can_run) {
                                         if (!strcmp(cmd_to_run.program, "cd")) { // cd command built-in.
                                                 int ret = chdir(cmd_to_run.args[1]);
-                                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd_to_run.full_cmd, WEXITSTATUS(ret));
                                                 int error_code = errno;
                                                 switch (error_code) {
                                                         case 2:
                                                                 fprintf(stderr, "Error: cannot cd into directory\n");  
                                                 }
+                                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd_to_run.full_cmd, 1);
                                         } else if (!strcmp(cmd_to_run.program, "pushd")) {
                                                 int ret = chdir(cmd_to_run.args[1]);
                                                 if (ret) {
