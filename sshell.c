@@ -362,12 +362,12 @@ int main(void) {
         char buf[256];
         if (getcwd(buf, sizeof(buf)) == NULL) perror("getcwd() error");
 	else getcwd(buf, sizeof(buf));
-        struct Node* Top = NULL;
+        struct Node* top_node = NULL;
         struct Node* nodes = (struct Node*)malloc(sizeof(struct Node));
         nodes->dir = malloc(sizeof(char)*256);
         strcpy(nodes->dir, buf);
         nodes->next = NULL;
-        Top = nodes;
+        top_node = nodes;
         
         while (1) {
                 char *new_line;
@@ -390,13 +390,13 @@ int main(void) {
                         pwd_execution();
                 } 
                 else if (!strcmp(cmd, "popd")) {
-                        if(!Top->next) {
+                        if(!top_node->next) {
                                 printf("Error: directory stack empty\n");
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(1));
                                 continue;
                         }
 
-                        struct Node *tmp = Top;
+                        struct Node *tmp = top_node;
                         char* next_dir = malloc(sizeof(char)*256);
                         strcpy(next_dir, top_node->dir); //to store data of top node
                         top_node = top_node->next;
@@ -462,7 +462,7 @@ int main(void) {
                 }
                 
                 else if (!strcmp(cmd, "dirs")) {
-                        struct Node *tmp = Top;
+                        struct Node *tmp = top_node;
                         while (tmp) {
                                 printf("%s\n", tmp->dir);
                                 tmp = tmp->next;
@@ -664,7 +664,7 @@ int main(void) {
                                                 nodes->dir = malloc(sizeof(char)*256);
                                                 strcpy(nodes->dir, buf);
 
-                                                if (!Top) {
+                                                if (!top_node) {
                                                         nodes->next = NULL;
                                                         //printf("top");
 
