@@ -346,8 +346,6 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
 
 int main(void) {
         char cmd[CMDLINE_MAX];
-        
-        //init stack
         char buf[256];
         if (getcwd(buf, sizeof(buf)) == NULL) perror("getcwd() error");
 	else getcwd(buf, sizeof(buf));
@@ -357,7 +355,6 @@ int main(void) {
         strcpy(nodes->dir, buf);
         nodes->next = NULL;
         top_node = nodes;
-        
         while (1) {
                 char *new_line;
                 printf("sshell@ucd$ ");
@@ -391,29 +388,24 @@ int main(void) {
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(1));
                                 continue;
                         }
-
                         struct Node *tmp = top_node;
                         char* next_dir = malloc(sizeof(char)*256);
-                        strcpy(next_dir, Top->dir); //to store data of top node
-                        Top = tmp->next;
+                        strcpy(next_dir, top_node->next->dir); //to store data of top node
+                        top_node = tmp->next;
                         free(tmp->dir);
                         free(tmp); //deleting the node
-
                         char cur_dir[256];
                         if (getcwd(cur_dir, sizeof(cur_dir)) == NULL)
                                 perror("getcwd() error");
                         else {
                                 getcwd(cur_dir, sizeof(cur_dir));
                         }
-                        
-                        
                         //comparing the two paths
                         bool common = 1;
                         int i = 0;
                         int greatest_common = 0;
                         int move_from_cur = 0;
-                        for (i;  i < strlen(cur_dir) || i < strlen(next_dir); i++) {
-                                                                
+                        for (i;  i < strlen(cur_dir) || i < strlen(next_dir); i++) {                                
                                 if(common) {
                                         if(cur_dir[i] == next_dir[i]) {
                                                 if(cur_dir[i] == '/') {
@@ -435,7 +427,6 @@ int main(void) {
                                         }
                                 }  
                         }
-
                         char move_to_next[256] = "\0";
                         greatest_common +=2;
                         for (int j = 0; j+greatest_common < strlen(next_dir); j++) {
@@ -444,7 +435,6 @@ int main(void) {
                         for (int j = 0; j < move_from_cur; j++) {
                                 chdir("..");
                         }
-                        
                         int ret = chdir(move_to_next);
                         if (ret) {
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 0);
@@ -452,16 +442,13 @@ int main(void) {
                         else {
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 1);
                         }
-                }
-                
-                else if (!strcmp(cmd, "dirs")) {
+                } else if (!strcmp(cmd, "dirs")) {
                         struct Node *tmp = top_node;
                         while (tmp) {
                                 printf("%s\n", tmp->dir);
                                 tmp = tmp->next;
                         }
                         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 0);
-
                 } 
                 else {
                         // Check if we have a pipe character => "|"
@@ -645,30 +632,31 @@ int main(void) {
                                                         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 1);
                                                 }
                                                 else {
+                                                        struct Node *nodes = (struct Node*)malloc(sizeof(struct Node));
+
+                                                        char buf[256];
+                                                        if (getcwd(buf, sizeof(buf)) == NULL)
+                                                                perror("getcwd() error");
+                                                        else { getcwd(buf, sizeof(buf)); }
+
+                                                        nodes->dir = malloc(sizeof(char)*256);
+                                                        strcpy(nodes->dir, buf);
+
+                                                        if (!top_node) {
+                                                                nodes->next = NULL;
+                                                                //printf("top");
+
+                                                        }
+                                                        else {
+                                                                //printf("not top");
+                                                                nodes->next = top_node;
+                                                        }
+                                                        top_node = nodes;
+                                                        //printf("%s\n", nodes->dir);
                                                         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
                                                 }
 
-                                                struct Node *nodes = (struct Node*)malloc(sizeof(struct Node));
-
-                                                char buf[256];
-                                                if (getcwd(buf, sizeof(buf)) == NULL)
-                                                        perror("getcwd() error");
-                                                else { getcwd(buf, sizeof(buf)); }
-
-                                                nodes->dir = malloc(sizeof(char)*256);
-                                                strcpy(nodes->dir, buf);
-
-                                                if (!top_node) {
-                                                        nodes->next = NULL;
-                                                        //printf("top");
-
-                                                }
-                                                else {
-                                                        //printf("not top");
-                                                        nodes->next = Top;
-                                                }
-                                                Top = nodes;
-                                                //printf("%s\n", nodes->dir);
+                        
                                         } else {
                                                 pid_t pid;
                                                 pid = fork();
