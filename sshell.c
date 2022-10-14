@@ -373,7 +373,18 @@ void cd_execution(char* cmd, const char *filename) {
 
 int main(void) {
         char cmd[CMDLINE_MAX];
+        
+        //init stack
+        char buf[256];
+        if (getcwd(buf, sizeof(buf)) == NULL) perror("getcwd() error");
+	else getcwd(buf, sizeof(buf));
         struct Node* Top = NULL;
+        struct Node* nodes = (struct Node*)malloc(sizeof(struct Node));
+        nodes->dir = malloc(sizeof(char)*256);
+        strcpy(nodes->dir, buf);
+        nodes->next = NULL;
+        Top = nodes;
+        
         while (1) {
                 char *new_line;
                 printf("sshell@ucd$ ");
@@ -395,13 +406,20 @@ int main(void) {
                         pwd_execution();
                 } 
                 else if (!strcmp(cmd, "popd")) {
-                        printf("%s\n",Top->dir);
+                        if(!Top->next) {
+                                printf("Error: directory stack empty\n");
+                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(1));
+                                continue;
+                        }
+
                         struct Node *tmp = Top;
                         char* next_dir = malloc(sizeof(char)*256);
                         strcpy(next_dir, Top->dir); //to store data of top node
                         Top = Top->next;
                         free(tmp->dir);
                         free(tmp); //deleting the node
+
+
         
                         
                         char cur_dir[256];
@@ -417,7 +435,6 @@ int main(void) {
                         int i = 0;
                         int greatest_common = 0;
                         int move_from_cur = 0;
-                        printf("current: %s, to: %s\n", cur_dir, next_dir);
                         for (i;  i < strlen(cur_dir) || i < strlen(next_dir); i++) {
                                                                 
                                 if(common) {
@@ -442,34 +459,30 @@ int main(void) {
                                 }  
                         }
 
-                        char *move_to_next = malloc(sizeof(char)*256);
-                        printf("j: %i", greatest_common);
-                        greatest_common++;
-                        int k = 0;
-                        for (int j = greatest_common; j < strlen(next_dir); j++) {
-                                printf("j: %i, %i, curdir: %c\n", j, k, cur_dir[j]);
-                                move_to_next[k] = cur_dir[j];
-                                k++;
+                        char move_to_next[256] = "\0";
+                        greatest_common +=2;
+                        for (int j = 0; j+greatest_common < strlen(next_dir); j++) {
+                                move_to_next[j] = next_dir[j+greatest_common];
                         }  
                         for (int j = 0; j < move_from_cur; j++) {
                                 chdir("..");
-                                printf("\nmove from cur: %i\n", move_from_cur);
                         }
                         
-                        printf("\nmovetonext: %s\n", move_to_next);
                         int ret = chdir(move_to_next);
                         if (ret) {
-                                fprintf(stderr, "Error: directory stack empty\n");
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
                         }
                         else {
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
                         }
-                        printf("\ncurrent dir: ");
-                        pwd_execution();
                 }
                 
                 else if (!strcmp(cmd, "dirs")) {
+                        struct Node *tmp = Top;
+                        while (tmp) {
+                                printf("%s\n", tmp->dir);
+                                tmp = tmp->next;
+                        }
 
                 } 
                 else {
@@ -641,11 +654,11 @@ int main(void) {
                                 if (can_run) {
                                         if (!strcmp(cmd_to_run.program, "cd")) { // cd command built-in.
                                                 int ret = chdir(cmd_to_run.args[1]);
-                                                fprintf(stderr, "+ completed  '%s' [%d]\n", cmd_to_run.full_cmd, WEXITSTATUS(ret));
+                                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd_to_run.full_cmd, WEXITSTATUS(ret));
                                                 int error_code = errno;
                                                 switch (error_code) {
                                                         case 2:
-                                                                fprintf(stderr, "Error: command not found\n");  
+                                                                fprintf(stderr, "Error: cannot cd into directory\n");  
                                                 }
                                         } else if (!strcmp(cmd_to_run.program, "pushd")) {
                                                 int ret = chdir(cmd_to_run.args[1]);
@@ -667,7 +680,7 @@ int main(void) {
                                                 nodes->dir = malloc(sizeof(char)*256);
                                                 strcpy(nodes->dir, buf);
 
-                                                if (Top == NULL) {
+                                                if (!Top) {
                                                         nodes->next = NULL;
                                                         //printf("top");
 
