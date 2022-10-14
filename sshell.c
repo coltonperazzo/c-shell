@@ -340,34 +340,18 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
         return new_cmd;
 }
 
-// Structure to create a node with data and the next pointer
+// Structure to create a node with data and the next pointer.
 struct Node {
     char* dir;
     struct Node *next;  
 };
 
-
 char* pwd_execution() {
-        //gotta deal with error handling
         char buf[256];
-
         if (getcwd(buf, sizeof(buf)) == NULL)
 		perror("getcwd() error");
 	else {
                 printf("%s\n", getcwd(buf, sizeof(buf)));
-        }
-
-}
-
-void cd_execution(char* cmd, const char *filename) {	
-	int ret = chdir(filename);
-
-	if (ret) {
-		fprintf(stderr, "Error: cannot cd into directory\n");
-                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
-        }
-        else {
-                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
         }
 }
 
@@ -414,8 +398,8 @@ int main(void) {
 
                         struct Node *tmp = Top;
                         char* next_dir = malloc(sizeof(char)*256);
-                        strcpy(next_dir, Top->dir); //to store data of top node
-                        Top = Top->next;
+                        strcpy(next_dir, top_node->dir); //to store data of top node
+                        top_node = top_node->next;
                         free(tmp->dir);
                         free(tmp); //deleting the node
 
@@ -687,9 +671,9 @@ int main(void) {
                                                 }
                                                 else {
                                                         //printf("not top");
-                                                        nodes->next = Top;
+                                                        nodes->next = top_node;
                                                 }
-                                                Top = nodes;
+                                                top_node = nodes;
                                                 //printf("%s\n", nodes->dir);
                                         } else {
                                                 pid_t pid;
