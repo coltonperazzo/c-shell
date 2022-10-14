@@ -644,15 +644,11 @@ int main(void) {
 
                                                         if (!top_node) {
                                                                 nodes->next = NULL;
-                                                                //printf("top");
-
                                                         }
                                                         else {
-                                                                //printf("not top");
                                                                 nodes->next = top_node;
                                                         }
                                                         top_node = nodes;
-                                                        //printf("%s\n", nodes->dir);
                                                         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
                                                 }
 
