@@ -428,9 +428,9 @@ int main(void) {
                         char *move_to_next = malloc(sizeof(char)*256);
                         printf("j: %i", greatest_common);
                         greatest_common++;
-                        int k =0;
+                        int k = 0;
                         for (int j = greatest_common; j < strlen(next_dir); j++) {
-                                printf("j: %i\ncurdir: %c", j, cur_dir[j]);
+                                printf("j: %i, %i, curdir: %c\n", j, k, cur_dir[j]);
                                 move_to_next[k] = cur_dir[j];
                                 k++;
                         }  
@@ -647,7 +647,6 @@ int main(void) {
 
                                                 nodes->dir = malloc(sizeof(char)*256);
                                                 strcpy(nodes->dir, buf);
-                                                //printf("%s", nodes->dir);
 
                                                 if (top_node == NULL) {
                                                         nodes->next = NULL;
