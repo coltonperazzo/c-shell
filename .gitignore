@@ -1,3 +1,6 @@
 *.nfs
 sshell
 .nfs
+sshell_ref
+tester.sh
+.gitignore
