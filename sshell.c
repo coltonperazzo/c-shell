@@ -28,6 +28,7 @@ struct command_struct {
         int total_cmds;
 
         char *full_cmd;
+        char *edited_cmd;
         char *program;
         char *args[ARGS_MAX];
 
@@ -201,6 +202,9 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
         new_cmd.number_of_args = 1;
         new_cmd.has_output_file = false;
         new_cmd.has_input_file = false;
+        char *edited_cmd = calloc(strlen(cmd)+1, sizeof(char));
+        strcpy(edited_cmd, cmd);
+        new_cmd.edited_cmd = edited_cmd;
         char* has_output_file = strchr(cmd, '>');
         if (has_output_file) {
                 new_cmd.has_output_file = true;
@@ -208,6 +212,8 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
                 strcpy(temp_cmd, cmd);
                 char *split_at_output = strchr(temp_cmd, '>')+1;
                 new_cmd.output_file = strtok(split_at_output, " ");
+                int index = strcspn(cmd, ">");
+                edited_cmd[index] = ' ';
         }
         char *has_input_file = strchr(cmd, '<');
         if (has_input_file) {
@@ -216,11 +222,13 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
                 strcpy(temp_cmd, cmd);
                 char *split_at_output = strchr(temp_cmd, '<')+1;
                 new_cmd.input_file = strtok(split_at_output, " ");
+                int index = strcspn(cmd, "<");
+                edited_cmd[index] = ' ';
         }
         if (strlen(prog) == strlen(cmd)) { new_cmd.args[1] = NULL; }
         else {
-                char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
-                strcpy(temp_cmd, cmd);
+                char *temp_cmd = calloc(strlen(edited_cmd)+1, sizeof(char));
+                strcpy(temp_cmd, edited_cmd);
                 char *cmd_arg = strtok(temp_cmd, " ");
                 while (cmd_arg != NULL) {
                         bool can_add_arg = true;
@@ -243,19 +251,8 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
                                 if (new_cmd.number_of_args > (ARGS_MAX - 1)) {
                                         break;
                                 }
-                                char* has_output_file = strchr(cmd_arg, '>');
-                                if (has_output_file) {
-                                        char *temp_cmd_output = calloc(strlen(cmd_arg)+1, sizeof(char));
-                                        strcpy(temp_cmd_output, cmd_arg);
-                                        char *cmd_arg_output = strtok(temp_cmd_output, ">");
-                                        if (strcmp(cmd_arg_output, new_cmd.output_file)) {
-                                                new_cmd.args[new_cmd.number_of_args] = cmd_arg_output;
-                                                new_cmd.number_of_args = new_cmd.number_of_args + 1;
-                                        }
-                                } else {
-                                        new_cmd.args[new_cmd.number_of_args] = cmd_arg;
-                                        new_cmd.number_of_args = new_cmd.number_of_args + 1;
-                                }
+                                new_cmd.args[new_cmd.number_of_args] = cmd_arg;
+                                new_cmd.number_of_args = new_cmd.number_of_args + 1;
                         }
                         cmd_arg = strtok(NULL, " ");
                 }
@@ -367,60 +364,78 @@ int main(void) {
                                                         }
                                                 }
                                                 if (!invalid_command) {
-                                                        size_t cmd_size = number_of_commands;
-                                                        pid_t *shared_return_values = mmap(NULL, cmd_size,
-                                                                PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED,
-                                                                -1, 0);
-                                                        pid_t pid;
-                                                        pid = fork();
-                                                        if (pid > 0) {
-                                                                int return_value;
-                                                                waitpid(pid, &return_value, 0);
-                                                                if (number_of_commands > 2) {
-                                                                        fprintf(stderr, "+ completed '%s' [%d][%d][%d]\n", cmd, WEXITSTATUS(shared_return_values[2]), WEXITSTATUS(shared_return_values[1]), WEXITSTATUS(return_value));
-                                                                } else { fprintf(stderr, "+ completed '%s' [%d][%d]\n", cmd, WEXITSTATUS(shared_return_values[1]), WEXITSTATUS(return_value));}
-                                                        } else if (pid == 0) {
-                                                                int cmd_n, in_pipe;
-                                                                int fd[2];
-                                                                in_pipe = STDIN_FILENO;
-                                                                for (cmd_n = 0; cmd_n < number_of_commands - 1; cmd_n++) {
-                                                                        pipe(fd);
-                                                                        pid_t child_pid;
-                                                                        child_pid = fork();
-                                                                        if (child_pid > 0) {
-                                                                                int return_value;
-                                                                                waitpid(child_pid, &return_value, 0);
-                                                                                shared_return_values[cmd_n] = return_value;
-                                                                        } else if (child_pid == 0) {
-                                                                                if (in_pipe != STDIN_FILENO) {
-                                                                                        dup2(in_pipe, STDIN_FILENO);
-                                                                                        close(in_pipe);
-                                                                                }
-                                                                                dup2(fd[1], STDOUT_FILENO);
-                                                                                close(fd[1]);
-                                                                                execvp(commands[cmd_n].program, commands[cmd_n].args);
-                                                                                exit(1); 
-                                                                        }
-                                                                        close(in_pipe);
-                                                                        close(fd[1]);
-                                                                        in_pipe = fd[0];
-                                                                }
-                                                                if (in_pipe != STDIN_FILENO) {
-                                                                        dup2(in_pipe, STDIN_FILENO);
-                                                                        close(in_pipe);
-                                                                }
-                                                                if (commands[cmd_n].has_output_file) {
-                                                                        int fd_write;
-                                                                        fd_write = open(commands[cmd_n].output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                                                                        dup2(fd_write, STDOUT_FILENO);
-                                                                        close(fd_write);
-                                                                } else { 
-                                                                        int stdout = dup(STDOUT_FILENO);
-                                                                        dup2(stdout, STDOUT_FILENO);
-                                                                }
-                                                                execvp(commands[cmd_n].program, commands[cmd_n].args);
-                                                                exit(1);
+                                                        int return_values[number_of_commands];
+                                                        int fd_1[2], fd_2[2], fd_3[2];
+                                                        pipe(fd_1);
+                                                        pid_t pid_1;
+                                                        pid_1 = fork();
+                                                        if (pid_1 == 0) {
+                                                                close(fd_1[0]); // close pipe 1 read
+                                                                dup2(fd_1[1], STDOUT_FILENO);
+                                                                close(fd_1[1]); // close pipe 1 write
+                                                                execvp(commands[0].program, commands[0].args);
                                                         }
+                                                        pipe(fd_2);
+                                                        pid_t pid_2;
+                                                        pid_2 = fork();
+                                                        if (pid_2 == 0) {
+                                                                close(fd_1[1]);  
+                                                                dup2(fd_1[0], STDIN_FILENO);
+                                                                close(fd_1[0]);
+                                                                if (number_of_commands > 2) {
+                                                                        close(fd_2[0]); // close pipe 2 read
+                                                                        dup2(fd_2[1], STDOUT_FILENO);
+                                                                        close(fd_2[1]); // close pipe 2 write
+                                                                }
+                                                                execvp(commands[1].program, commands[1].args);
+                                                        }
+                                                        close(fd_1[1]);
+                                                        close(fd_1[0]);
+                                                        if (number_of_commands > 2) {
+                                                                pipe(fd_3);
+                                                                pid_t pid_3;
+                                                                pid_3 = fork();
+                                                                if (pid_3 == 0) {
+                                                                        close(fd_2[1]);
+                                                                        dup2(fd_2[0], STDIN_FILENO);
+                                                                        close(fd_2[0]);
+                                                                        if (number_of_commands > 3) {
+                                                                                close(fd_3[0]); // close pipe 3 read
+                                                                                dup2(fd_3[1], STDOUT_FILENO);
+                                                                                close(fd_3[1]); // close pipe 3 write
+                                                                        }
+                                                                        execvp(commands[2].program, commands[2].args);
+                                                                }
+                                                                close(fd_2[1]);
+                                                                close(fd_2[0]);
+                                                                if (number_of_commands > 3) {
+                                                                        pid_t pid_4;
+                                                                        pid_4 = fork();
+                                                                        if(pid_4 == 0) {
+                                                                                close(fd_3[1]);
+                                                                                dup2(fd_3[0], STDIN_FILENO);
+                                                                                close(fd_3[0]);
+                                                                                execvp(commands[3].program, commands[3].args);  
+                                                                        }
+                                                                        close(fd_3[1]);
+                                                                        close(fd_3[0]);
+                                                                } else {
+                                                                        close(fd_3[1]);
+                                                                        close(fd_3[0]); 
+                                                                }
+                                                        } else {
+                                                                close(fd_2[1]);
+                                                                close(fd_2[0]);
+                                                        }
+                                                        int process;
+                                                        for (process = 0; process < number_of_commands; process++) {
+                                                                int return_value;
+                                                                wait(&return_value);
+                                                                return_values[process] = return_value;
+                                                        }
+                                                        if (number_of_commands > 2) {
+                                                                fprintf(stderr, "+ completed '%s' [%d][%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(return_values[1]), WEXITSTATUS(return_values[2]));
+                                                        } else { fprintf(stderr, "+ completed '%s' [%d][%d]\n", cmd, WEXITSTATUS(return_values[0]), WEXITSTATUS(return_values[1]));}
                                                 }
                                         } else {
                                                 fprintf(stderr, "Error: too many pipes\n");  
@@ -447,23 +462,27 @@ int main(void) {
                                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(return_value));
                                         } else if (pid == 0) { // child
                                                 if (cmd_to_run.has_output_file) {
-                                                        int fd;
-                                                        fd = open(cmd_to_run.output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-                                                        dup2(fd, STDOUT_FILENO);
-                                                        close(fd);
+                                                        int fd_output;
+                                                        fd_output = open(cmd_to_run.output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                                                        dup2(fd_output, STDOUT_FILENO);
+                                                        close(fd_output);
                                                 } else { 
-                                                        int stdout = dup(STDOUT_FILENO);
-                                                        dup2(stdout, STDOUT_FILENO);
+                                                        if (cmd_to_run.has_input_file) {
+                                                                int fd_input;
+                                                                fd_input = open(cmd_to_run.input_file, O_RDONLY);
+                                                                dup2(fd_input, STDIN_FILENO);
+                                                                close(fd_input);
+                                                        }
                                                 }
-
                                                 execvp(cmd_to_run.program, cmd_to_run.args);
                                                 int error_code = errno;
+                                                //printf("error code: %d\n", errno);
                                                 switch (error_code) {
                                                         case 2:
                                                         fprintf(stderr, "Error: command not found\n");  
                                                 }
                                                 exit(1);
-                                        } else { printf("Error: fork cannot be created\n"); }
+                                        } else { printf("Error: fork cannot be created\n"); break; }
                                 }
                         }
                 }
