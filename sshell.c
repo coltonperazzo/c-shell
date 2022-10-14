@@ -43,6 +43,12 @@ struct command_struct {
         int number_of_args;
 };
 
+// Structure to create a node with data and the next pointer.
+struct Node {
+    char* dir;
+    struct Node *next;  
+};
+
 /*
 Returns a character of the program name parsed from the cmd put into the terminal.
 @param char *cmd => command inserted into terminal (ex: echo hello world)
@@ -322,9 +328,7 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
                                         char *temp_cmd_output = calloc(strlen(cmd_arg)+1, sizeof(char));
                                         strcpy(temp_cmd_output, cmd_arg);
                                         char *cmd_arg_output = strtok(temp_cmd_output, ">");
-                                        printf("got: %s\n", cmd_arg_output);
                                         if (strcmp(cmd_arg_output, new_cmd.output_file)) {
-                                                printf("adding arg: %s\n", cmd_arg_output);
                                                 new_cmd.args[new_cmd.number_of_args] = cmd_arg_output;
                                                 new_cmd.number_of_args = new_cmd.number_of_args + 1;
                                         }
@@ -340,21 +344,6 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
         return new_cmd;
 }
 
-// Structure to create a node with data and the next pointer.
-struct Node {
-    char* dir;
-    struct Node *next;  
-};
-
-char* pwd_execution() {
-        char buf[256];
-        if (getcwd(buf, sizeof(buf)) == NULL)
-		perror("getcwd() error");
-	else {
-                printf("%s\n", getcwd(buf, sizeof(buf)));
-        }
-}
-
 int main(void) {
         char cmd[CMDLINE_MAX];
         
@@ -362,12 +351,12 @@ int main(void) {
         char buf[256];
         if (getcwd(buf, sizeof(buf)) == NULL) perror("getcwd() error");
 	else getcwd(buf, sizeof(buf));
-        struct Node* Top = NULL;
+        struct Node* top_node = NULL;
         struct Node* nodes = (struct Node*)malloc(sizeof(struct Node));
         nodes->dir = malloc(sizeof(char)*256);
         strcpy(nodes->dir, buf);
         nodes->next = NULL;
-        Top = nodes;
+        top_node = nodes;
         
         while (1) {
                 char *new_line;
@@ -387,16 +376,23 @@ int main(void) {
                         break;
                 }
                 else if (!strcmp(cmd, "pwd")) {
-                        pwd_execution();
+                        char buf[256];
+                        if (getcwd(buf, sizeof(buf)) == NULL)
+                                perror("getcwd() error");
+                        else {
+                                printf("%s\n", getcwd(buf, sizeof(buf)));
+                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 0);
+                                
+                        }
                 } 
                 else if (!strcmp(cmd, "popd")) {
-                        if(!Top->next) {
+                        if(!top_node->next) {
                                 printf("Error: directory stack empty\n");
                                 fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(1));
                                 continue;
                         }
 
-                        struct Node *tmp = Top;
+                        struct Node *tmp = top_node;
                         char* next_dir = malloc(sizeof(char)*256);
                         strcpy(next_dir, Top->dir); //to store data of top node
                         Top = tmp->next;
@@ -451,19 +447,20 @@ int main(void) {
                         
                         int ret = chdir(move_to_next);
                         if (ret) {
-                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 0);
                         }
                         else {
-                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 1);
                         }
                 }
                 
                 else if (!strcmp(cmd, "dirs")) {
-                        struct Node *tmp = Top;
+                        struct Node *tmp = top_node;
                         while (tmp) {
                                 printf("%s\n", tmp->dir);
                                 tmp = tmp->next;
                         }
+                        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 0);
 
                 } 
                 else {
@@ -645,7 +642,7 @@ int main(void) {
                                                 int ret = chdir(cmd_to_run.args[1]);
                                                 if (ret) {
                                                         fprintf(stderr, "Error: cannot push directory\n");
-                                                        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+                                                        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 1);
                                                 }
                                                 else {
                                                         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
@@ -661,7 +658,7 @@ int main(void) {
                                                 nodes->dir = malloc(sizeof(char)*256);
                                                 strcpy(nodes->dir, buf);
 
-                                                if (!Top) {
+                                                if (!top_node) {
                                                         nodes->next = NULL;
                                                         //printf("top");
 
