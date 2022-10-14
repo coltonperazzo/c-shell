@@ -645,9 +645,8 @@ int main(void) {
                                 struct command_struct cmd_to_run = parse_single_cmd(cmd, 0, 0); 
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
-                                        if (!strcmp(cmd_to_run.program, "cd")) {
-                                                printf("about to execute cd\n"); 
-						cd_execution(cmd);
+                                        if (!strcmp(cmd_to_run.program, "cd")) { 
+						cd_execution(cmd_to_run.program, cmd_to_run.args[1]);
                                                 continue;
                                         }
                                         else if (!strcmp(cmd_to_run.program, "pushd")) {
@@ -669,7 +668,6 @@ int main(void) {
 
                                                 nodes->dir = malloc(sizeof(char)*256);
                                                 strcpy(nodes->dir, buf);
-                                                //printf("%s", nodes->dir);
 
                                                 if (Top == NULL) {
                                                         nodes->next = NULL;
