@@ -202,12 +202,12 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
         }
         if (strlen(prog) == strlen(cmd)) { new_cmd.args[1] = NULL; }
         else {
-                printf("inserted cmd: %s\n", cmd);
+                //printf("inserted cmd: %s\n", cmd);
                 char *temp_cmd = calloc(strlen(cmd)+1, sizeof(char));
                 strcpy(temp_cmd, cmd);
                 char *cmd_arg = strtok(temp_cmd, " ");
                 while (cmd_arg != NULL) {
-                        printf("testing arg: %s\n", cmd_arg);
+                        //printf("testing arg: %s\n", cmd_arg);
                         bool can_add_arg = true;
                         if (!strcmp(cmd_arg, prog)) {
                                 can_add_arg = false;
@@ -233,9 +233,9 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
                                         char *temp_cmd_output = calloc(strlen(cmd_arg)+1, sizeof(char));
                                         strcpy(temp_cmd_output, cmd_arg);
                                         char *cmd_arg_output = strtok(temp_cmd_output, ">");
-                                        printf("got: %s\n", cmd_arg_output);
+                                        //printf("got: %s\n", cmd_arg_output);
                                         if (strcmp(cmd_arg_output, new_cmd.output_file)) {
-                                                printf("adding arg: %s\n", cmd_arg_output);
+                                                //printf("adding arg: %s\n", cmd_arg_output);
                                                 new_cmd.args[new_cmd.number_of_args] = cmd_arg_output;
                                                 new_cmd.number_of_args = new_cmd.number_of_args + 1;
                                         }
@@ -251,41 +251,47 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
         return new_cmd;
 }
 
-int file_name_errors(int err) {
+// Structure to create a node with data and the next pointer
+struct Node {
+    char* dir;
+    struct Node *next;  
+};
 
-}
 
-void pwd_execution() {
+char* pwd_execution() {
         //gotta deal with error handling
         char buf[256];
-        //printf("%s\n", getcwd(buf, sizeof(buf)));
-        /*
-        if (chdir("/tmp") != 0)
-                perror("chdir() error()");
-        else {
-                if (getcwd(cwd, sizeof(cwd)) == NULL)
-                        perror("getcwd() error");
-                else
-                        printf("current working directory is: %s\n", cwd);
+
+        if (getcwd(buf, sizeof(buf)) == NULL)
+		perror("getcwd() error");
+	else {
+                printf("%s\n", getcwd(buf, sizeof(buf)));
         }
-        */
+
+}
+      
+
+void cd_execution(char* cmd, const char *filename) {	
+	int ret = chdir(filename);
+
+	if (ret) {
+		fprintf(stderr, "Error: cannot cd into directory\n");
+                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+        }
+        else {
+                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+        }
 }
 
-void cd_execution(const char *filename) {
-        int ret = chdir(filename[1]);
-	fprintf(stderr, "+ completed  '%s': [%d]\n", filename, WEXITSTATUS(ret));
-	int error_code = errno;
-	
-	
-	switch (error_code) {
-		case 2:
-			fprintf(stderr, "Error: command not found\n");  
-	}
-	exit(1);
+void pushd_exec(char *cmd, char **args) {
+        printf("%s, %s\n", cmd, args[1]);
+
+
 }
 
 int main(void) {
         char cmd[CMDLINE_MAX];
+        struct Node* Top = NULL;
         while (1) {
                 char *new_line;
                 printf("sshell@ucd$ ");
@@ -303,21 +309,85 @@ int main(void) {
                         fprintf(stderr, "+ completed '%s' [%d]\n", cmd, 0);
                         break;
                 }
-                //cd in else, since it has 2 arguments
-                /*else if (!strcmp(cmd, "cd")) { 
-                        const char dot[256] = "..";
-                        //printf("dot = %s\n", dot);
-                        cd_execution(dot);
-                }*/
                 else if (!strcmp(cmd, "pwd")) {
                         pwd_execution();
                 } 
-                else if (!strcmp(cmd, "pushd")) {
 
-                } 
                 else if (!strcmp(cmd, "popd")) {
+                        printf("%s\n",Top->dir);
+                        struct Node *tmp = Top;
+                        char* next_dir = malloc(sizeof(char)*256);
+                        strcpy(next_dir, Top->dir); //to store data of top node
+                        Top = Top->next;
+                        free(tmp->dir);
+                        free(tmp); //deleting the node
+        
+                        
+                        char cur_dir[256];
+                        if (getcwd(cur_dir, sizeof(cur_dir)) == NULL)
+                                perror("getcwd() error");
+                        else {
+                                getcwd(cur_dir, sizeof(cur_dir));
+                        }
+                        
+                        
+                        //comparing the two paths
+                        bool common = 1;
+                        int i = 0;
+                        int greatest_common = 0;
+                        int move_from_cur = 0;
+                        printf("current: %s, to: %s\n", cur_dir, next_dir);
+                        for (i;  i < strlen(cur_dir) || i < strlen(next_dir); i++) {
+                                                                
+                                if(common) {
+                                        if(cur_dir[i] == next_dir[i]) {
+                                                if(cur_dir[i] == '/') {
+                                                        greatest_common = i;
+                                                }
+                                                if(i+1 == strlen(cur_dir) || i+1 == strlen(next_dir)) {
+                                                        greatest_common = i;
+                                                }
+                                        }
+                                        else {
+                                                common = 0;
+                                                continue;
+                                        }
+                                }
+                                else {
+                                        if (i < strlen(cur_dir)) { //get path to common
+                                                if(move_from_cur == 0) move_from_cur = 1;
+                                                if (cur_dir[i] == '/') move_from_cur++;
+                                        }
+                                }  
+                        }
 
-                } 
+                        char *move_to_next = malloc(sizeof(char)*256);
+                        printf("j: %i", greatest_common);
+                        greatest_common++;
+                        int k =0;
+                        for (int j = greatest_common; j < strlen(next_dir); j++) {
+                                printf("j: %i\ncurdir: %c", j, cur_dir[j]);
+                                move_to_next[k] = cur_dir[j];
+                                k++;
+                        }  
+                        for (int j = 0; j < move_from_cur; j++) {
+                                chdir("..");
+                                printf("\nmove from cur: %i\n", move_from_cur);
+                        }
+                        
+                        printf("\nmovetonext: %s\n", move_to_next);
+                        int ret = chdir(move_to_next);
+                        if (ret) {
+                                fprintf(stderr, "Error: directory stack empty\n");
+                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+                        }
+                        else {
+                                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+                        }
+                        printf("\ncurrent dir: ");
+                        pwd_execution();
+                }
+                
                 else if (!strcmp(cmd, "dirs")) {
 
                 } 
@@ -420,9 +490,44 @@ int main(void) {
                                 bool can_run = sanity_check_cmd(cmd_to_run);
                                 if (can_run) {
                                         if (!strcmp(cmd_to_run.program, "cd")) {
-                                                printf("about to execute cd\n"); 
-						cd_execution(cmd);
+                                                //simpleprintf("about to execute cd\n"); 
+						cd_execution(cmd, cmd_to_run.args[1]);
                                                 continue;
+                                        }
+                                        else if (!strcmp(cmd_to_run.program, "pushd")) {
+                                                int ret = chdir(cmd_to_run.args[1]);
+                                                if (ret) {
+                                                        fprintf(stderr, "Error: cannot push directory\n");
+                                                        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+                                                }
+                                                else {
+                                                        fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+                                                }
+
+                                                struct Node *nodes = (struct Node*)malloc(sizeof(struct Node));
+
+                                                char buf[256];
+                                                if (getcwd(buf, sizeof(buf)) == NULL)
+                                                        perror("getcwd() error");
+                                                else { getcwd(buf, sizeof(buf)); }
+
+                                                nodes->dir = malloc(sizeof(char)*256);
+                                                strcpy(nodes->dir, buf);
+                                                //printf("%s", nodes->dir);
+
+                                                if (Top == NULL) {
+                                                        nodes->next = NULL;
+                                                        //printf("top");
+
+                                                }
+                                                else {
+                                                        //printf("not top");
+                                                        nodes->next = Top;
+                                                }
+                                                Top = nodes;
+                                                //printf("%s\n", nodes->dir);
+                                                
+                                                
                                         }
                                         pid_t pid;
                                         pid = fork();
