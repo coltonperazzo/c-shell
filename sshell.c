@@ -340,40 +340,24 @@ struct command_struct parse_single_cmd(char *cmd, int num, int total) {
         return new_cmd;
 }
 
-// Structure to create a node with data and the next pointer
+// Structure to create a node with data and the next pointer.
 struct Node {
     char* dir;
     struct Node *next;  
 };
 
-
 char* pwd_execution() {
-        //gotta deal with error handling
         char buf[256];
-
         if (getcwd(buf, sizeof(buf)) == NULL)
 		perror("getcwd() error");
 	else {
                 printf("%s\n", getcwd(buf, sizeof(buf)));
         }
-
-}
-
-void cd_execution(char* cmd, const char *filename) {	
-	int ret = chdir(filename);
-
-	if (ret) {
-		fprintf(stderr, "Error: cannot cd into directory\n");
-                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
-        }
-        else {
-                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
-        }
 }
 
 int main(void) {
         char cmd[CMDLINE_MAX];
-        struct Node* Top = NULL;
+        struct Node* top_node = NULL;
         while (1) {
                 char *new_line;
                 printf("sshell@ucd$ ");
@@ -395,11 +379,11 @@ int main(void) {
                         pwd_execution();
                 } 
                 else if (!strcmp(cmd, "popd")) {
-                        printf("%s\n",Top->dir);
-                        struct Node *tmp = Top;
+                        printf("%s\n",top_node->dir);
+                        struct Node *tmp = top_node;
                         char* next_dir = malloc(sizeof(char)*256);
-                        strcpy(next_dir, Top->dir); //to store data of top node
-                        Top = Top->next;
+                        strcpy(next_dir, top_node->dir); //to store data of top node
+                        top_node = top_node->next;
                         free(tmp->dir);
                         free(tmp); //deleting the node
         
@@ -418,8 +402,7 @@ int main(void) {
                         int greatest_common = 0;
                         int move_from_cur = 0;
                         printf("current: %s, to: %s\n", cur_dir, next_dir);
-                        for (i;  i < strlen(cur_dir) || i < strlen(next_dir); i++) {
-                                                                
+                        for (i;  i < strlen(cur_dir) || i < strlen(next_dir); i++) {                           
                                 if(common) {
                                         if(cur_dir[i] == next_dir[i]) {
                                                 if(cur_dir[i] == '/') {
@@ -467,12 +450,10 @@ int main(void) {
                         }
                         printf("\ncurrent dir: ");
                         pwd_execution();
-                }
-                
-                else if (!strcmp(cmd, "dirs")) {
-
-                } 
-                else {
+                } else if (!strcmp(cmd, "dirs")) {
+                        struct Node *tmp = top_node;
+                        printf("%s\n",top_node->dir);
+                } else {
                         // Check if we have a pipe character => "|"
                         char* has_multiple_commands = strchr(cmd, '|');
                         if (has_multiple_commands) { // We must have multiple commands.
@@ -668,16 +649,16 @@ int main(void) {
                                                 strcpy(nodes->dir, buf);
                                                 //printf("%s", nodes->dir);
 
-                                                if (Top == NULL) {
+                                                if (top_node == NULL) {
                                                         nodes->next = NULL;
                                                         //printf("top");
 
                                                 }
                                                 else {
                                                         //printf("not top");
-                                                        nodes->next = Top;
+                                                        nodes->next = top_node;
                                                 }
-                                                Top = nodes;
+                                                top_node = nodes;
                                                 //printf("%s\n", nodes->dir);
                                         } else {
                                                 pid_t pid;
