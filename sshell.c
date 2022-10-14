@@ -359,6 +359,18 @@ char* pwd_execution() {
 
 }
 
+void cd_execution(char* cmd, const char *filename) {	
+	int ret = chdir(filename);
+
+	if (ret) {
+		fprintf(stderr, "Error: cannot cd into directory\n");
+                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+        }
+        else {
+                fprintf(stderr, "+ completed '%s' [%d]\n", cmd, WEXITSTATUS(ret));
+        }
+}
+
 int main(void) {
         char cmd[CMDLINE_MAX];
         struct Node* Top = NULL;
