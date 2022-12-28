@@ -1,6 +1,4 @@
 // sshell.c
-// Colton Perazzo and András Necz 
-// ECS 150, University of California, Davis
 
 #include <stdio.h>
 #include <stdlib.h>
